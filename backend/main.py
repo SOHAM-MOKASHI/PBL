@@ -246,9 +246,8 @@ async def process_pipeline():
                 "count": 1,
             })
 
-        # High priority → alerts queue + broadcast
-        if raw["severity"] in ("CRITICAL", "HIGH"):
-            state.alert_logs.appendleft(raw)
+        # Add all processed logs to the alerts queue to show a mix of severities
+        state.alert_logs.appendleft(raw)
 
         # Persist all processed alerts to DB
         asyncio.create_task(asyncio.to_thread(save_alert, raw))
