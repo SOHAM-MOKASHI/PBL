@@ -208,9 +208,9 @@ export function AlertPanel({ alerts, connected, lastCritical, onSelectAlert }) {
             </div>
           </div>
         ) : (
-          visible.map((alert) => (
+          visible.map((alert, idx) => (
             <AlertCard
-              key={`${alert.alert_id}`}
+              key={`${alert.alert_id}-${idx}`}
               alert={alert}
               onDismiss={() => setDismissed(p => new Set([...p, alert.alert_id]))}
               onSelect={onSelectAlert}
