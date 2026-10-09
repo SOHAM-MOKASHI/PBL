@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from traffic_gen import run_traffic_generator, log_queue, NetworkLog, TrafficType
+from novelty_engine import generate_xai_narrative, get_telemetry_coverage
 
 # ---------------------------------------------------------------------------
 # App init
@@ -47,6 +48,13 @@ class AppState:
     connected_clients: list = []                   # WebSocket clients
 
 state = AppState()
+
+# ---------------------------------------------------------------------------
+# Dynamic threshold & RLHF whitelist  (additive)
+# ---------------------------------------------------------------------------
+CURRENT_ALERT_THRESHOLD: float = 85.0   # adjusted at runtime via /ws/feedback
+BENIGN_WHITELIST: set = set()            # IPs confirmed benign by analyst
+feedback_manager_ref = None              # filled after ConnectionManager init
 
 # ---------------------------------------------------------------------------
 # Trusted subnet set (stage 2 heuristic)
@@ -156,11 +164,20 @@ def stage3_ml_anomaly_score(raw: dict) -> dict:
 
 def stage4_alert_generation(raw: dict) -> dict:
     """
-    Stage 4: Decide alert severity, update counters.
+    Stage 4: Decide alert severity using dynamic threshold, update counters.
     """
     score = raw["threat_score"]
+    src_ip = raw.get("src_ip", "")
 
-    if score >= 85:
+    # Whitelisted IPs are always LOW regardless of score
+    if src_ip in BENIGN_WHITELIST:
+        raw["severity"] = "LOW"
+        raw["alert_id"] = f"ALT-{int(time.time() * 1000) % 1_000_000:06d}"
+        raw["stage"] = 4
+        raw["whitelisted"] = True
+        return raw
+
+    if score >= CURRENT_ALERT_THRESHOLD:
         severity = "CRITICAL"
         state.total_alerts += 1
         state.active_threats = min(state.active_threats + 1, 50)
@@ -170,13 +187,18 @@ def stage4_alert_generation(raw: dict) -> dict:
         severity = "MEDIUM"
     else:
         severity = "LOW"
-        # Gradually decay active threats for LOW events
         if state.active_threats > 0 and random.random() < 0.05:
             state.active_threats -= 1
 
     raw["severity"] = severity
     raw["alert_id"] = f"ALT-{int(time.time() * 1000) % 1_000_000:06d}"
     raw["stage"] = 4
+    raw["current_threshold"] = CURRENT_ALERT_THRESHOLD
+
+    # Enrich CRITICAL and HIGH alerts with XAI narrative
+    if severity in ("CRITICAL", "HIGH"):
+        raw["xai"] = generate_xai_narrative(raw)
+
     return raw
 
 
@@ -279,8 +301,42 @@ async def broadcast(raw: dict):
             "total_alerts": state.total_alerts,
             "active_threats": state.active_threats,
         },
+        "threshold": CURRENT_ALERT_THRESHOLD,
     })
     await manager.broadcast(payload)
+
+
+# ---------------------------------------------------------------------------
+# Feedback WebSocket manager (separate from alerts manager)
+# ---------------------------------------------------------------------------
+class FeedbackManager:
+    def __init__(self):
+        self.active: list[WebSocket] = []
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active.append(ws)
+
+    def disconnect(self, ws: WebSocket):
+        if ws in self.active:
+            self.active.remove(ws)
+
+    async def broadcast_threshold(self):
+        msg = json.dumps({
+            "type": "threshold_update",
+            "threshold_value": CURRENT_ALERT_THRESHOLD,
+            "whitelist_size": len(BENIGN_WHITELIST),
+        })
+        dead = []
+        for ws in self.active:
+            try:
+                await ws.send_text(msg)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(ws)
+
+feedback_manager = FeedbackManager()
 
 
 # ---------------------------------------------------------------------------
@@ -318,6 +374,17 @@ async def health():
     return {"status": "ok", "ts": time.time()}
 
 
+@app.get("/api/telemetry")
+async def get_telemetry():
+    """Returns telemetry coverage and blind-spot analysis."""
+    return get_telemetry_coverage()
+
+
+@app.get("/api/threshold")
+async def get_threshold():
+    return {"threshold": CURRENT_ALERT_THRESHOLD, "whitelist": list(BENIGN_WHITELIST)}
+
+
 # ---------------------------------------------------------------------------
 # WebSocket endpoint
 # ---------------------------------------------------------------------------
@@ -350,6 +417,56 @@ async def websocket_endpoint(ws: WebSocket):
         manager.disconnect(ws)
     except Exception:
         manager.disconnect(ws)
+
+
+# ---------------------------------------------------------------------------
+# RLHF Feedback WebSocket endpoint  (additive)
+# ---------------------------------------------------------------------------
+
+@app.websocket("/ws/feedback")
+async def feedback_endpoint(ws: WebSocket):
+    """
+    Receives analyst RLHF feedback to tune the dynamic alert threshold.
+    Supported messages:
+      {"type": "false_positive", "ip": "x.x.x.x"}  -> threshold +2, IP whitelisted
+      {"type": "confirm_threat",  "ip": "x.x.x.x"}  -> threshold -1, IP removed from whitelist
+      {"type": "ping"}                               -> noop keepalive
+    Broadcasts updated threshold_value to all feedback subscribers.
+    """
+    global CURRENT_ALERT_THRESHOLD
+    await feedback_manager.connect(ws)
+    # Send current state immediately on connect
+    await ws.send_text(json.dumps({
+        "type": "threshold_update",
+        "threshold_value": CURRENT_ALERT_THRESHOLD,
+        "whitelist_size": len(BENIGN_WHITELIST),
+    }))
+    try:
+        while True:
+            raw_msg = await ws.receive_text()
+            try:
+                msg = json.loads(raw_msg)
+            except Exception:
+                continue
+
+            msg_type = msg.get("type", "")
+            ip = msg.get("ip", "")
+
+            if msg_type == "false_positive":
+                CURRENT_ALERT_THRESHOLD = min(CURRENT_ALERT_THRESHOLD + 2.0, 99.0)
+                if ip:
+                    BENIGN_WHITELIST.add(ip)
+                await feedback_manager.broadcast_threshold()
+
+            elif msg_type == "confirm_threat":
+                CURRENT_ALERT_THRESHOLD = max(CURRENT_ALERT_THRESHOLD - 1.0, 50.0)
+                BENIGN_WHITELIST.discard(ip)
+                await feedback_manager.broadcast_threshold()
+
+    except WebSocketDisconnect:
+        feedback_manager.disconnect(ws)
+    except Exception:
+        feedback_manager.disconnect(ws)
 
 
 # ---------------------------------------------------------------------------

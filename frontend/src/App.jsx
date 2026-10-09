@@ -3,12 +3,15 @@
  * Main layout orchestrator
  */
 import { useState, useEffect } from 'react';
-import { Shield, Cpu, Globe, Radio, AlertOctagon } from 'lucide-react';
+import { Shield, Cpu, Globe, Radio, AlertOctagon, FlaskConical, LayoutDashboard } from 'lucide-react';
 import { MetricCards } from './components/MetricCards';
 import { ThreatChart } from './components/ThreatChart';
 import { TerminalFeed } from './components/TerminalFeed';
 import { AlertPanel } from './components/AlertPanel';
 import { PipelineView } from './components/PipelineView';
+import { KillChainGraph } from './components/KillChainGraph';
+import { XaiAlertPanel } from './components/XaiAlertPanel';
+import { MitreRadar } from './components/MitreRadar';
 import { useWebSocket } from './hooks/useWebSocket';
 
 // ── Uptime clock ──────────────────────────────────────────────────────────
@@ -107,6 +110,13 @@ function Header({ connected, active }) {
 // ── App ───────────────────────────────────────────────────────────────────
 export default function App() {
   const { connected, logs, alerts, timeline, metrics, lastCritical } = useWebSocket();
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [activeTab, setActiveTab] = useState('core'); // 'core' | 'research'
+
+  // Auto-select latest critical alert for research panel
+  useEffect(() => {
+    if (lastCritical) setSelectedAlert(lastCritical);
+  }, [lastCritical?.alert_id]);
 
   // Global critical screen flash
   const [screenFlash, setScreenFlash] = useState(false);
@@ -134,37 +144,90 @@ export default function App() {
       {/* Header */}
       <Header connected={connected} active={metrics.active_threats} />
 
+      {/* Tab bar */}
+      <div className="shrink-0 px-4 pt-3 flex items-center gap-1 border-b border-cyber-border">
+        {[
+          { id: 'core', label: 'Core SOC', icon: LayoutDashboard },
+          { id: 'research', label: 'AI Research Modules', icon: FlaskConical },
+        ].map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-t-lg transition-all"
+            style={{
+              background: activeTab === id ? 'rgba(0,212,255,0.08)' : 'transparent',
+              color: activeTab === id ? '#00d4ff' : '#475569',
+              borderBottom: activeTab === id ? '2px solid #00d4ff' : '2px solid transparent',
+              marginBottom: -1,
+            }}
+          >
+            <Icon size={12} />
+            {label}
+          </button>
+        ))}
+        {selectedAlert && (
+          <span className="ml-auto text-[9px] font-mono text-slate-600">
+            Inspecting: <span className="text-cyan-600">{selectedAlert.alert_id}</span>
+          </span>
+        )}
+      </div>
+
       {/* Main content */}
       <main className="flex-1 flex flex-col gap-3 p-4 overflow-hidden min-h-0">
 
-        {/* Row 1: Metric cards */}
-        <MetricCards metrics={metrics} connected={connected} />
+        {activeTab === 'core' ? (
+          <>
+            {/* Row 1: Metric cards */}
+            <MetricCards metrics={metrics} connected={connected} />
 
-        {/* Row 2: Pipeline view */}
-        <PipelineView metrics={metrics} />
+            {/* Row 2: Pipeline view */}
+            <PipelineView metrics={metrics} />
 
-        {/* Row 3: Chart + Alert panel (takes remaining space) */}
-        <div className="flex gap-3 flex-1 min-h-0">
+            {/* Row 3: Chart + Alert panel (takes remaining space) */}
+            <div className="flex gap-3 flex-1 min-h-0">
+              {/* Left: Terminal feed */}
+              <div className="w-[28%] min-h-0">
+                <TerminalFeed logs={logs} />
+              </div>
+              {/* Center: Threat chart */}
+              <div className="flex-1 min-h-0">
+                <ThreatChart timeline={timeline} />
+              </div>
+              {/* Right: Alert panel */}
+              <div className="w-[27%] min-h-0">
+                <AlertPanel
+                  alerts={alerts}
+                  connected={connected}
+                  lastCritical={lastCritical}
+                  onSelectAlert={setSelectedAlert}
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Research tab: Kill Chain + XAI + Telemetry */}
+            {/* Top row: metric strip */}
+            <MetricCards metrics={metrics} connected={connected} />
 
-          {/* Left: Terminal feed (25%) */}
-          <div className="w-[28%] min-h-0">
-            <TerminalFeed logs={logs} />
-          </div>
+            {/* Bottom row: 3 research panels */}
+            <div className="flex gap-3 flex-1 min-h-0">
+              {/* Kill Chain graph (45%) */}
+              <div className="w-[45%] min-h-0">
+                <KillChainGraph alert={selectedAlert} />
+              </div>
+              {/* XAI panel (30%) */}
+              <div className="w-[30%] min-h-0">
+                <XaiAlertPanel alert={selectedAlert} />
+              </div>
+              {/* Telemetry radar (25%) */}
+              <div className="flex-1 min-h-0">
+                <MitreRadar />
+              </div>
+            </div>
+          </>
+        )}
 
-          {/* Center: Threat chart (45%) */}
-          <div className="flex-1 min-h-0">
-            <ThreatChart timeline={timeline} />
-          </div>
-
-          {/* Right: Alert panel (27%) */}
-          <div className="w-[27%] min-h-0">
-            <AlertPanel
-              alerts={alerts}
-              connected={connected}
-              lastCritical={lastCritical}
-            />
-          </div>
-        </div>
       </main>
 
       {/* Footer */}

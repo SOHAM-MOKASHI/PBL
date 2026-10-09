@@ -21,7 +21,7 @@ function formatBytes(b) {
   return `${b} B`;
 }
 
-function AlertCard({ alert, onDismiss }) {
+function AlertCard({ alert, onDismiss, onSelect }) {
   const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.LOW;
 
   return (
@@ -91,28 +91,43 @@ function AlertCard({ alert, onDismiss }) {
         </div>
       </div>
 
-      {/* Alert ID & Stage */}
+      {/* Alert ID, Stage & Inspect button */}
       <div className="mt-1.5 flex items-center justify-between">
         <span className="text-[9px] text-slate-700 font-mono">{alert.alert_id}</span>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              className="w-4 h-1 rounded-full"
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            {[1, 2, 3, 4].map((s) => (
+              <div
+                key={s}
+                className="w-4 h-1 rounded-full"
+                style={{
+                  background: s <= (alert.stage ?? 4) ? cfg.color : 'rgba(61,90,128,0.3)',
+                  opacity: s <= (alert.stage ?? 4) ? 0.8 : 0.3,
+                }}
+              />
+            ))}
+            <span className="text-[9px] text-slate-700 font-mono ml-1">Stage {alert.stage ?? 4}</span>
+          </div>
+          {onSelect && alert.xai && (
+            <button
+              onClick={() => onSelect(alert)}
+              className="text-[9px] font-mono px-1.5 py-0.5 rounded transition-all hover:scale-105"
               style={{
-                background: s <= (alert.stage ?? 4) ? cfg.color : 'rgba(61,90,128,0.3)',
-                opacity: s <= (alert.stage ?? 4) ? 0.8 : 0.3,
+                background: 'rgba(139,92,246,0.15)',
+                color: '#8b5cf6',
+                border: '1px solid rgba(139,92,246,0.3)',
               }}
-            />
-          ))}
-          <span className="text-[9px] text-slate-700 font-mono ml-1">Stage {alert.stage ?? 4}</span>
+            >
+              Inspect
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-export function AlertPanel({ alerts, connected, lastCritical }) {
+export function AlertPanel({ alerts, connected, lastCritical, onSelectAlert }) {
   const [dismissed, setDismissed] = useState(new Set());
   const [criticalCount, setCriticalCount] = useState(0);
   const [showBanner, setShowBanner] = useState(false);
@@ -198,6 +213,7 @@ export function AlertPanel({ alerts, connected, lastCritical }) {
               key={`${alert.alert_id}`}
               alert={alert}
               onDismiss={() => setDismissed(p => new Set([...p, alert.alert_id]))}
+              onSelect={onSelectAlert}
             />
           ))
         )}

@@ -1,0 +1,289 @@
+/**
+ * XaiAlertPanel.jsx — Explainable AI alert detail panel with RLHF feedback buttons
+ * Displays narrative, MITRE ATT&CK mapping, playbook, and analyst action buttons.
+ */
+import { useState, useEffect, useRef } from 'react';
+import {
+  BookOpen, CheckCircle, XCircle, ChevronDown, ChevronUp,
+  Shield, Zap, AlertTriangle, ExternalLink,
+} from 'lucide-react';
+
+const WS_FEEDBACK_URL = 'ws://localhost:8000/ws/feedback';
+
+function MitreBadge({ techniqueId, techniqueName, tactic }) {
+  return (
+    <a
+      href={`https://attack.mitre.org/techniques/${techniqueId?.replace('.', '/')}/`}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center gap-2 px-3 py-2 rounded-lg border transition-all hover:scale-[1.01]"
+      style={{
+        background: 'rgba(139,92,246,0.1)',
+        borderColor: 'rgba(139,92,246,0.3)',
+        textDecoration: 'none',
+      }}
+    >
+      <div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-bold font-mono" style={{ color: '#8b5cf6' }}>
+            {techniqueId}
+          </span>
+          <ExternalLink size={9} style={{ color: '#8b5cf6' }} />
+        </div>
+        <div className="text-xs text-slate-300 font-semibold mt-0.5">{techniqueName}</div>
+        <div className="text-[9px] text-slate-600 mt-0.5 uppercase tracking-widest">Tactic: {tactic}</div>
+      </div>
+    </a>
+  );
+}
+
+function ConfidenceBar({ confidence }) {
+  const pct = Math.round((confidence ?? 0) * 100);
+  const color = pct >= 85 ? '#ff2d55' : pct >= 60 ? '#ff6b35' : '#ffd700';
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[9px] text-slate-600 font-mono w-20 uppercase">Confidence</span>
+      <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(26,39,68,0.8)' }}>
+        <div
+          className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${color}80, ${color})` }}
+        />
+      </div>
+      <span className="text-[10px] font-bold font-mono" style={{ color }}>{pct}%</span>
+    </div>
+  );
+}
+
+function PlaybookSteps({ text }) {
+  const steps = text?.split(/\d+\.\s+/).filter(Boolean) ?? [];
+  return (
+    <ol className="space-y-1.5 mt-2">
+      {steps.map((step, i) => (
+        <li key={i} className="flex gap-2 text-[11px] text-slate-400">
+          <span
+            className="shrink-0 w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold font-mono mt-0.5"
+            style={{ background: 'rgba(0,212,255,0.15)', color: '#00d4ff' }}
+          >
+            {i + 1}
+          </span>
+          <span>{step.trim()}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export function XaiAlertPanel({ alert, onAlertSelect }) {
+  const [threshold, setThreshold] = useState(85);
+  const [whitelistSize, setWhitelistSize] = useState(0);
+  const [feedback, setFeedback] = useState(null);  // 'confirmed' | 'benign' | null
+  const [playbookOpen, setPlaybookOpen] = useState(true);
+  const wsRef = useRef(null);
+
+  // Connect to feedback WebSocket
+  useEffect(() => {
+    const connect = () => {
+      const ws = new WebSocket(WS_FEEDBACK_URL);
+      wsRef.current = ws;
+
+      ws.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.type === 'threshold_update') {
+            setThreshold(msg.threshold_value);
+            setWhitelistSize(msg.whitelist_size ?? 0);
+          }
+        } catch {}
+      };
+
+      ws.onclose = () => setTimeout(connect, 3000);
+    };
+    connect();
+    return () => wsRef.current?.close();
+  }, []);
+
+  // Reset feedback state when alert changes
+  useEffect(() => { setFeedback(null); }, [alert?.alert_id]);
+
+  const sendFeedback = (type) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    wsRef.current.send(JSON.stringify({ type, ip: alert?.src_ip ?? '' }));
+    setFeedback(type === 'false_positive' ? 'benign' : 'confirmed');
+  };
+
+  if (!alert) {
+    return (
+      <div className="panel flex flex-col h-full">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-cyber-border shrink-0">
+          <BookOpen size={13} className="text-purple-400" />
+          <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">XAI Analysis</span>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center p-6">
+            <BookOpen size={28} className="text-slate-700 mx-auto mb-3" />
+            <p className="text-xs text-slate-600 font-mono">No alert selected</p>
+            <p className="text-[10px] text-slate-700 font-mono mt-1">Click a CRITICAL or HIGH alert</p>
+          </div>
+        </div>
+        {/* Threshold HUD always visible */}
+        <div className="px-4 py-3 border-t border-cyber-border">
+          <div className="flex items-center justify-between text-[10px] font-mono">
+            <span className="text-slate-600 uppercase">Dynamic Threshold</span>
+            <span className="font-bold text-cyan-400">{threshold.toFixed(1)}</span>
+          </div>
+          <div className="progress-bar mt-1.5">
+            <div className="progress-fill" style={{ width: `${threshold}%`, background: 'linear-gradient(90deg,#00d4ff,#8b5cf6)' }} />
+          </div>
+          <div className="flex justify-between text-[9px] text-slate-700 font-mono mt-1">
+            <span>50 (min)</span>
+            <span>{whitelistSize} IPs whitelisted</span>
+            <span>99 (max)</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const xai = alert.xai ?? {};
+  const severity = alert.severity ?? 'HIGH';
+  const severityColor = severity === 'CRITICAL' ? '#ff2d55' : '#ff6b35';
+
+  return (
+    <div className="panel flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-cyber-border shrink-0">
+        <div className="flex items-center gap-2">
+          <BookOpen size={13} className="text-purple-400" />
+          <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">XAI Analysis</span>
+        </div>
+        <div
+          className="text-[9px] px-2 py-0.5 rounded font-mono font-bold"
+          style={{ background: `${severityColor}18`, color: severityColor, border: `1px solid ${severityColor}40` }}
+        >
+          {severity}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+
+        {/* Alert summary */}
+        <div className="text-[10px] font-mono text-slate-500 flex gap-3 flex-wrap">
+          <span>ID: <span className="text-slate-400">{alert.alert_id}</span></span>
+          <span>Score: <span style={{ color: severityColor }} className="font-bold">{Math.round(alert.threat_score ?? 0)}</span></span>
+          <span>Proto: <span className="text-slate-400">{alert.protocol}</span></span>
+        </div>
+
+        {/* Confidence */}
+        <ConfidenceBar confidence={xai.confidence} />
+
+        {/* MITRE badge */}
+        {xai.mitre_technique_id && (
+          <MitreBadge
+            techniqueId={xai.mitre_technique_id}
+            techniqueName={xai.mitre_technique_name}
+            tactic={xai.mitre_tactic}
+          />
+        )}
+
+        {/* Narrative */}
+        <div
+          className="rounded-lg p-3 border text-xs text-slate-300 leading-relaxed"
+          style={{ background: 'rgba(0,212,255,0.04)', borderColor: 'rgba(0,212,255,0.12)' }}
+        >
+          <div className="text-[9px] text-cyan-600 font-mono uppercase tracking-widest mb-1.5 flex items-center gap-1">
+            <Zap size={9} /> AI Narrative
+          </div>
+          {xai.narrative ?? 'Generating analysis...'}
+        </div>
+
+        {/* Playbook */}
+        {xai.playbook && (
+          <div className="rounded-lg border" style={{ borderColor: 'rgba(255,107,53,0.2)', background: 'rgba(255,107,53,0.04)' }}>
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-mono"
+              onClick={() => setPlaybookOpen(v => !v)}
+              style={{ color: '#ff6b35' }}
+            >
+              <span className="flex items-center gap-1 uppercase tracking-widest font-bold">
+                <Shield size={9} /> Response Playbook
+              </span>
+              {playbookOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+            </button>
+            {playbookOpen && (
+              <div className="px-3 pb-3">
+                <PlaybookSteps text={xai.playbook} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* RLHF feedback buttons */}
+        <div className="pt-1">
+          <div className="text-[9px] text-slate-600 font-mono uppercase tracking-widest mb-2">
+            Analyst Feedback (RLHF)
+          </div>
+          {feedback ? (
+            <div
+              className="rounded-lg px-3 py-2.5 text-xs font-mono text-center font-semibold"
+              style={{
+                background: feedback === 'confirmed' ? 'rgba(0,255,136,0.1)' : 'rgba(255,215,0,0.1)',
+                border: `1px solid ${feedback === 'confirmed' ? 'rgba(0,255,136,0.3)' : 'rgba(255,215,0,0.3)'}`,
+                color: feedback === 'confirmed' ? '#00ff88' : '#ffd700',
+              }}
+            >
+              {feedback === 'confirmed'
+                ? '✓ Threat confirmed — threshold tightened'
+                : '○ Marked benign — IP whitelisted, threshold relaxed'}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => sendFeedback('confirm_threat')}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95"
+                style={{
+                  background: 'rgba(0,255,136,0.1)',
+                  border: '1px solid rgba(0,255,136,0.3)',
+                  color: '#00ff88',
+                }}
+              >
+                <CheckCircle size={12} />
+                Confirm Threat
+              </button>
+              <button
+                onClick={() => sendFeedback('false_positive')}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95"
+                style={{
+                  background: 'rgba(255,215,0,0.08)',
+                  border: '1px solid rgba(255,215,0,0.25)',
+                  color: '#ffd700',
+                }}
+              >
+                <XCircle size={12} />
+                Mark Benign
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Threshold HUD (always at bottom) */}
+      <div className="px-4 py-3 border-t border-cyber-border shrink-0">
+        <div className="flex items-center justify-between text-[10px] font-mono mb-1">
+          <span className="text-slate-600 uppercase tracking-widest">Dynamic Threshold</span>
+          <span className="font-bold text-cyan-400">{threshold.toFixed(1)} pts</span>
+        </div>
+        <div className="progress-bar">
+          <div
+            className="progress-fill transition-all duration-700"
+            style={{ width: `${threshold}%`, background: 'linear-gradient(90deg, #00d4ff, #8b5cf6)' }}
+          />
+        </div>
+        <div className="flex justify-between text-[9px] text-slate-700 font-mono mt-1">
+          <span>Confirm → tighten</span>
+          <span style={{ color: '#00d4ff88' }}>{whitelistSize} whitelisted</span>
+          <span>Benign → relax</span>
+        </div>
+      </div>
+    </div>
+  );
+}
