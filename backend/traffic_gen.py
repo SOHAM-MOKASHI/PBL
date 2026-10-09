@@ -240,34 +240,34 @@ async def run_traffic_generator():
     dataset_path = "cicids2017.csv"
     if os.path.exists(dataset_path):
         print(f"[OK] Reading simulated raw logs from local dataset: {dataset_path}")
-        with open(dataset_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                lbl = row.get("Label", "BENIGN")
-                is_benign = lbl.upper() == "BENIGN"
-                log = NetworkLog(
-                    timestamp=time.time(),
-                    src_ip=row.get("Source IP", row.get("src_ip", _random_external_ip())),
-                    dst_ip=row.get("Destination IP", row.get("dst_ip", _random_internal_ip())),
-                    src_port=int(row.get("Source Port", row.get("src_port", random.randint(1024, 65535)))),
-                    dst_port=int(row.get("Destination Port", row.get("dst_port", 80))),
-                    protocol=row.get("Protocol", "TCP"),
-                    bytes_sent=int(row.get("Fwd Packet Length Total", row.get("bytes_sent", 500))),
-                    bytes_recv=int(row.get("Bwd Packet Length Total", row.get("bytes_recv", 500))),
-                    duration_ms=float(row.get("Flow Duration", row.get("duration_ms", 100.0))) / 1000.0,
-                    traffic_type=TrafficType.NORMAL if is_benign else TrafficType.ATTACK,
-                    attack_label="DEFAULT" if is_benign else lbl,
-                    packet_count=int(row.get("Total Fwd Packets", row.get("packet_count", 5))),
-                    ttl=64,
-                    flags="ACK"
-                )
-                try:
-                    log_queue.put_nowait(log)
-                except asyncio.QueueFull:
-                    pass
-                await asyncio.sleep(0.2) # stream at 5 logs/sec (slowed down from 50)
-        print("[STOP] Finished dataset reading loop. Halting traffic gen.")
-        return
+        while True:
+            with open(dataset_path, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    lbl = row.get("Label", "BENIGN")
+                    is_benign = lbl.upper() == "BENIGN"
+                    log = NetworkLog(
+                        timestamp=time.time(),
+                        src_ip=row.get("Source IP", row.get("src_ip", _random_external_ip())),
+                        dst_ip=row.get("Destination IP", row.get("dst_ip", _random_internal_ip())),
+                        src_port=int(row.get("Source Port", row.get("src_port", random.randint(1024, 65535)))),
+                        dst_port=int(row.get("Destination Port", row.get("dst_port", 80))),
+                        protocol=row.get("Protocol", "TCP"),
+                        bytes_sent=int(row.get("Fwd Packet Length Total", row.get("bytes_sent", 500))),
+                        bytes_recv=int(row.get("Bwd Packet Length Total", row.get("bytes_recv", 500))),
+                        duration_ms=float(row.get("Flow Duration", row.get("duration_ms", 100.0))) / 1000.0,
+                        traffic_type=TrafficType.NORMAL if is_benign else TrafficType.ATTACK,
+                        attack_label="DEFAULT" if is_benign else lbl,
+                        packet_count=int(row.get("Total Fwd Packets", row.get("packet_count", 5))),
+                        ttl=64,
+                        flags="ACK"
+                    )
+                    try:
+                        log_queue.put_nowait(log)
+                    except asyncio.QueueFull:
+                        pass
+                    await asyncio.sleep(2.8) # Pacing calibration: exactly 2.8 seconds
+            print("[INFO] Reached end of dataset, restarting loop...")
 
     # Fallback: Random generation
     loop_count = 0

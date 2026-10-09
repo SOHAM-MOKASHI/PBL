@@ -26,11 +26,11 @@ function AlertCard({ alert, onDismiss, onSelect }) {
 
   return (
     <div
-      className={`rounded-lg p-3 mb-2 border transition-all duration-300 ${cfg.flash ? 'critical-flash' : ''}`}
-      style={{
+      className={`rounded-lg p-3 mb-2 border ${cfg.flash ? 'border-l-4 border-l-red-500 bg-red-950/30 transition-all duration-700 ease-in-out' : 'transition-all duration-300'}`}
+      style={!cfg.flash ? {
         background: cfg.bg,
         borderColor: `${cfg.color}33`,
-      }}
+      } : {}}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
@@ -153,7 +153,8 @@ export function AlertPanel({ alerts, connected, lastCritical, onSelectAlert }) {
             Alert Panel
           </span>
           {criticalCount > 0 && (
-            <span className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold font-mono animate-pulse">
+            <span className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse inline-block mr-1"></span>
               {criticalCount}
             </span>
           )}
@@ -175,15 +176,13 @@ export function AlertPanel({ alerts, connected, lastCritical, onSelectAlert }) {
       {/* Critical banner */}
       {showBanner && lastCritical && (
         <div
-          className="mx-3 mt-2 px-3 py-2 rounded-lg border text-xs font-mono critical-flash shrink-0"
+          className="mx-3 mt-2 px-3 py-2 rounded-lg border-l-4 border-l-red-500 bg-red-950/30 transition-all duration-700 ease-in-out text-xs font-mono shrink-0"
           style={{
-            background: 'rgba(255,45,85,0.15)',
-            borderColor: 'rgba(255,45,85,0.5)',
             color: '#ff2d55',
           }}
         >
           <div className="flex items-center gap-2">
-            <span className="animate-pulse font-bold">⚡ CRITICAL ALERT</span>
+            <span className="font-bold">⚡ CRITICAL ALERT</span>
             <span className="text-slate-400">
               {lastCritical.attack_label ?? lastCritical.protocol} detected from{' '}
               <span className="text-red-400">{lastCritical.src_ip}</span>

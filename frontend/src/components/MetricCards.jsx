@@ -100,7 +100,7 @@ export function MetricCards({ metrics, connected }) {
         return (
           <div
             key={card.label}
-            className={`panel p-4 shimmer ${card.flash ? 'critical-flash' : ''}`}
+            className={`panel p-4 shimmer ${card.flash ? 'border-l-4 border-l-red-500 bg-red-950/30 transition-all duration-700 ease-in-out' : 'transition-all duration-300'}`}
             style={{
               boxShadow: `0 0 20px ${card.glow}, inset 0 1px 0 rgba(255,255,255,0.05)`,
               borderColor: `${card.color}22`,
