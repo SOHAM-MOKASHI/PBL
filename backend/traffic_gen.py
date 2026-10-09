@@ -265,7 +265,7 @@ async def run_traffic_generator():
                     log_queue.put_nowait(log)
                 except asyncio.QueueFull:
                     pass
-                await asyncio.sleep(0.02) # stream at 50 logs/sec
+                await asyncio.sleep(0.2) # stream at 5 logs/sec (slowed down from 50)
         print("[STOP] Finished dataset reading loop. Halting traffic gen.")
         return
 
