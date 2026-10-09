@@ -192,7 +192,8 @@ def stage4_alert_generation(raw: dict) -> dict:
             state.active_threats -= 1
 
     raw["severity"] = severity
-    raw["alert_id"] = f"ALT-{int(time.time() * 1000) % 1_000_000:06d}"
+    import uuid
+    raw["alert_id"] = f"ALT-{int(time.time() * 1000) % 1_000_000:06d}-{uuid.uuid4().hex[:4]}"
     raw["stage"] = 4
     raw["current_threshold"] = CURRENT_ALERT_THRESHOLD
 
