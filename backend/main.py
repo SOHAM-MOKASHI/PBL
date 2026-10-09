@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from traffic_gen import run_traffic_generator, log_queue, NetworkLog, TrafficType
 from novelty_engine import generate_xai_narrative, get_telemetry_coverage
+from database import init_db, load_config, save_alert, save_config
 
 # ---------------------------------------------------------------------------
 # App init
@@ -248,6 +249,9 @@ async def process_pipeline():
         if raw["severity"] in ("CRITICAL", "HIGH"):
             state.alert_logs.appendleft(raw)
 
+        # Persist all processed alerts to DB
+        asyncio.create_task(asyncio.to_thread(save_alert, raw))
+
         # Broadcast to all WS clients
         await broadcast(raw)
 
@@ -457,11 +461,13 @@ async def feedback_endpoint(ws: WebSocket):
                 if ip:
                     BENIGN_WHITELIST.add(ip)
                 await feedback_manager.broadcast_threshold()
+                asyncio.create_task(asyncio.to_thread(save_config, CURRENT_ALERT_THRESHOLD, BENIGN_WHITELIST))
 
             elif msg_type == "confirm_threat":
                 CURRENT_ALERT_THRESHOLD = max(CURRENT_ALERT_THRESHOLD - 1.0, 50.0)
                 BENIGN_WHITELIST.discard(ip)
                 await feedback_manager.broadcast_threshold()
+                asyncio.create_task(asyncio.to_thread(save_config, CURRENT_ALERT_THRESHOLD, BENIGN_WHITELIST))
 
     except WebSocketDisconnect:
         feedback_manager.disconnect(ws)
@@ -475,9 +481,18 @@ async def feedback_endpoint(ws: WebSocket):
 
 @app.on_event("startup")
 async def startup_event():
+    global CURRENT_ALERT_THRESHOLD, BENIGN_WHITELIST
+    # Initialize DB (creates sqlite file on startup automatically)
+    init_db()
+    
+    # Load persistent configurations if they exist
+    t, w = load_config()
+    CURRENT_ALERT_THRESHOLD = t
+    BENIGN_WHITELIST = w
+    
     asyncio.create_task(run_traffic_generator())
     asyncio.create_task(process_pipeline())
-    print("[OK] CSOC Backend started -- traffic generator & pipeline running.")
+    print("[OK] CSOC Backend started -- traffic generator, DB & pipeline running.")
 
 
 @app.on_event("shutdown")
