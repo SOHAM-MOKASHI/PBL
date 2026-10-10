@@ -12,6 +12,7 @@ import { PipelineView } from './components/PipelineView';
 import { KillChainGraph } from './components/KillChainGraph';
 import { XaiAlertPanel } from './components/XaiAlertPanel';
 import { MitreRadar } from './components/MitreRadar';
+import { LoginPage } from './components/LoginPage';
 import { useWebSocket } from './hooks/useWebSocket';
 
 // ── Uptime clock ──────────────────────────────────────────────────────────
@@ -109,6 +110,7 @@ function Header({ connected, active }) {
 
 // ── App ───────────────────────────────────────────────────────────────────
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { connected, logs, alerts, timeline, metrics, lastCritical } = useWebSocket();
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [activeTab, setActiveTab] = useState('core'); // 'core' | 'research'
@@ -127,6 +129,10 @@ export default function App() {
       return () => clearTimeout(t);
     }
   }, [lastCritical]);
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
+  }
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-cyber-bg noise-bg">
