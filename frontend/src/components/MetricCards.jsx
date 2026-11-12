@@ -1,36 +1,24 @@
 /**
- * MetricCards.jsx — Component 4: KPI metric cards
+ * MetricCards.jsx — Enterprise SOC KPI Telemetry Cards
  */
-import { Shield, Zap, Activity, TrendingUp, AlertTriangle, Eye } from 'lucide-react';
+import { ShieldAlert, Activity, AlertTriangle, Cpu } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-function AnimatedNumber({ value, suffix = '' }) {
+function AnimatedNumber({ value }) {
   const [displayed, setDisplayed] = useState(value);
 
   useEffect(() => {
     const diff = value - displayed;
     if (Math.abs(diff) < 1) { setDisplayed(value); return; }
-    const step = Math.ceil(Math.abs(diff) / 8);
+    const step = Math.ceil(Math.abs(diff) / 6);
     const t = setTimeout(() => setDisplayed(prev => {
       const next = diff > 0 ? prev + step : prev - step;
       return diff > 0 ? Math.min(next, value) : Math.max(next, value);
-    }), 16);
+    }), 20);
     return () => clearTimeout(t);
   }, [value, displayed]);
 
-  return <span>{displayed.toLocaleString()}{suffix}</span>;
-}
-
-function SparkBar({ value, max = 100, color }) {
-  const pct = Math.min((value / max) * 100, 100);
-  return (
-    <div className="progress-bar mt-2">
-      <div
-        className="progress-fill transition-all duration-500"
-        style={{ width: `${pct}%`, background: color }}
-      />
-    </div>
-  );
+  return <span>{displayed.toLocaleString()}</span>;
 }
 
 export function MetricCards({ metrics, connected }) {
@@ -48,48 +36,55 @@ export function MetricCards({ metrics, connected }) {
   const cards = [
     {
       icon: Activity,
-      label: 'Packets Analyzed',
+      label: 'Telemetry Ingested',
       value: total_ingested,
-      sub: `${total_dropped.toLocaleString()} filtered out`,
-      color: '#00d4ff',
-      glow: 'rgba(0,212,255,0.2)',
-      bar: filterRate,
-      barColor: 'linear-gradient(90deg, #00d4ff, #0077ff)',
+      sub: `${total_dropped.toLocaleString()} dropped via Stage 2 (${filterRate}% noise cut)`,
+      badge: `${filterRate}% Filtered`,
+      badgeColor: 'text-blue-400 bg-blue-950/60 border-blue-800/80',
+      iconColor: 'text-blue-400 bg-blue-950/40 border-blue-900/60',
+      progress: Math.min(total_ingested % 100, 100),
+      progressBarColor: 'bg-blue-500',
     },
     {
-      icon: Shield,
-      label: 'Active Threats',
+      icon: ShieldAlert,
+      label: 'Active Incident Threats',
       value: active_threats,
-      sub: active_threats > 10 ? '⚠ HIGH THREAT LEVEL' : active_threats > 5 ? 'ELEVATED' : 'NORMAL',
-      color: active_threats > 10 ? '#ff2d55' : active_threats > 5 ? '#ff6b35' : '#00ff88',
-      glow: active_threats > 10 ? 'rgba(255,45,85,0.25)' : 'rgba(0,255,136,0.15)',
-      bar: Math.min(active_threats * 2, 100),
-      barColor: active_threats > 10
-        ? 'linear-gradient(90deg, #ff2d55, #ff0040)'
-        : 'linear-gradient(90deg, #00ff88, #00cc70)',
-      flash: active_threats > 10,
+      sub: active_threats > 8 ? 'Elevated incident rate detected' : 'Operational threat status nominal',
+      badge: active_threats > 8 ? 'High Priority' : 'Normal',
+      badgeColor: active_threats > 8
+        ? 'text-red-400 bg-red-950/60 border-red-800/80'
+        : 'text-emerald-400 bg-emerald-950/60 border-emerald-800/80',
+      iconColor: active_threats > 8
+        ? 'text-red-400 bg-red-950/40 border-red-900/60'
+        : 'text-emerald-400 bg-emerald-950/40 border-emerald-900/60',
+      progress: Math.min(active_threats * 6, 100),
+      progressBarColor: active_threats > 8 ? 'bg-red-500' : 'bg-emerald-500',
     },
     {
       icon: AlertTriangle,
-      label: 'Total Alerts',
+      label: 'Prioritized Alerts',
       value: total_alerts,
-      sub: `${alertRate}% alert rate`,
-      color: '#ff6b35',
-      glow: 'rgba(255,107,53,0.2)',
-      bar: Math.min(parseFloat(alertRate) * 5, 100),
-      barColor: 'linear-gradient(90deg, #ff6b35, #ff2d55)',
+      sub: `${alertRate}% of scored packets elevated to incident`,
+      badge: `${alertRate}% Alert Ratio`,
+      badgeColor: 'text-orange-400 bg-orange-950/60 border-orange-800/80',
+      iconColor: 'text-orange-400 bg-orange-950/40 border-orange-900/60',
+      progress: Math.min(parseFloat(alertRate) * 4, 100),
+      progressBarColor: 'bg-orange-500',
     },
     {
-      icon: Eye,
-      label: 'Logs Scored',
+      icon: Cpu,
+      label: 'Feature Scored Flows',
       value: total_scored,
-      sub: `${connected ? '● LIVE PIPELINE' : '○ CONNECTING...'}`,
-      color: connected ? '#00ff88' : '#ffd700',
-      glow: connected ? 'rgba(0,255,136,0.15)' : 'rgba(255,215,0,0.15)',
-      bar: connected ? 100 : 20,
-      barColor: connected
-        ? 'linear-gradient(90deg, #00ff88, #00d4ff)'
-        : 'linear-gradient(90deg, #ffd700, #ff6b35)',
+      sub: connected ? 'Real-time feature extraction active' : 'Connecting to ingestion hub...',
+      badge: connected ? 'Stream Live' : 'Offline',
+      badgeColor: connected
+        ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800/80'
+        : 'text-amber-400 bg-amber-950/60 border-amber-800/80',
+      iconColor: connected
+        ? 'text-emerald-400 bg-emerald-950/40 border-emerald-900/60'
+        : 'text-amber-400 bg-amber-950/40 border-amber-900/60',
+      progress: 100,
+      progressBarColor: 'bg-emerald-500',
     },
   ];
 
@@ -100,35 +95,38 @@ export function MetricCards({ metrics, connected }) {
         return (
           <div
             key={card.label}
-            className={`panel p-4 shimmer ${card.flash ? 'border-l-4 border-l-red-500 bg-red-950/30 transition-all duration-700 ease-in-out' : 'transition-all duration-300'}`}
-            style={{
-              boxShadow: `0 0 20px ${card.glow}, inset 0 1px 0 rgba(255,255,255,0.05)`,
-              borderColor: `${card.color}22`,
-            }}
+            className="bg-slate-900 border border-slate-800 rounded-lg p-3.5 flex flex-col justify-between hover:border-slate-700 transition-colors shadow-sm"
           >
-            <div className="flex items-start justify-between mb-1">
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">
+                <p className="text-[11px] font-medium text-slate-400 tracking-wide">
                   {card.label}
                 </p>
-                <p
-                  className="text-2xl font-bold font-mono"
-                  style={{ color: card.color }}
-                >
+                <p className="text-2xl font-bold font-mono text-white mt-1">
                   <AnimatedNumber value={card.value} />
                 </p>
               </div>
-              <div
-                className="p-2 rounded-lg"
-                style={{ background: `${card.color}18` }}
-              >
-                <Icon size={18} style={{ color: card.color }} />
+              <div className={`p-2 rounded-lg border ${card.iconColor}`}>
+                <Icon size={18} />
               </div>
             </div>
-            <p className="text-xs mt-1 font-mono" style={{ color: `${card.color}99` }}>
-              {card.sub}
-            </p>
-            <SparkBar value={card.bar} color={card.barColor} />
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-[11px] mb-1.5">
+                <span className="text-slate-400 truncate max-w-[70%]">
+                  {card.sub}
+                </span>
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${card.badgeColor}`}>
+                  {card.badge}
+                </span>
+              </div>
+              <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${card.progressBarColor} transition-all duration-500`}
+                  style={{ width: `${card.progress}%` }}
+                />
+              </div>
+            </div>
           </div>
         );
       })}

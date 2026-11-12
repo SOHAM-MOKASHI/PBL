@@ -1,9 +1,9 @@
 /**
- * App.jsx — CSOC Threat Detection Dashboard
- * Main layout orchestrator
+ * App.jsx — CSOC Enterprise Threat Detection & Incident Response Platform
+ * Clean, production-grade layout orchestrator
  */
 import { useState, useEffect } from 'react';
-import { Shield, Cpu, Globe, Radio, AlertOctagon, FlaskConical, LayoutDashboard } from 'lucide-react';
+import { Shield, Activity, Network, LayoutDashboard, UserCheck, Clock } from 'lucide-react';
 import { MetricCards } from './components/MetricCards';
 import { ThreatChart } from './components/ThreatChart';
 import { TerminalFeed } from './components/TerminalFeed';
@@ -25,90 +25,85 @@ function Uptime() {
   const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
   const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
   const s = String(seconds % 60).padStart(2, '0');
-  return <span className="font-mono text-xs text-slate-500">{h}:{m}:{s}</span>;
+  return <span className="font-mono text-xs text-slate-300 font-medium">{h}:{m}:{s}</span>;
 }
 
-// ── Threat level indicator ────────────────────────────────────────────────
-function ThreatLevelBadge({ active }) {
-  const level = active > 15 ? 'CRITICAL' : active > 8 ? 'HIGH' : active > 3 ? 'ELEVATED' : 'NORMAL';
-  const color = active > 15 ? '#ff2d55' : active > 8 ? '#ff6b35' : active > 3 ? '#ffd700' : '#00ff88';
+// ── Clean Enterprise Threat Status Badge ──────────────────────────────────
+function ThreatStatusBadge({ active }) {
+  const level = active > 15 ? 'CRITICAL' : active > 8 ? 'HIGH' : active > 3 ? 'ELEVATED' : 'NOMINAL';
+  const badgeClasses = {
+    CRITICAL: 'bg-red-950/60 border-red-800/80 text-red-400',
+    HIGH: 'bg-orange-950/60 border-orange-800/80 text-orange-400',
+    ELEVATED: 'bg-amber-950/60 border-amber-800/80 text-amber-400',
+    NOMINAL: 'bg-emerald-950/60 border-emerald-800/80 text-emerald-400',
+  }[level];
+
   return (
-    <div
-      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-mono font-bold"
-      style={{
-        background: `${color}12`,
-        borderColor: `${color}40`,
-        color,
-        boxShadow: `0 0 15px ${color}20`,
-      }}
-    >
-      <span
-        className="w-2 h-2 rounded-full animate-pulse"
-        style={{ background: color, boxShadow: `0 0 6px ${color}` }}
-      />
-      DEFCON: {level}
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-mono font-semibold ${badgeClasses}`}>
+      <span className="w-2 h-2 rounded-full bg-current" />
+      <span>THREAT STATUS: {level}</span>
+      <span className="text-[10px] text-slate-400">({active} active)</span>
     </div>
   );
 }
 
 // ── Header ────────────────────────────────────────────────────────────────
 function Header({ connected, active }) {
-  const now = new Date().toLocaleString('en-US', {
-    weekday: 'short', year: 'numeric', month: 'short',
-    day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
-  });
-
   return (
-    <header className="shrink-0 px-6 py-3 border-b border-cyber-border flex items-center justify-between hex-grid">
-      {/* Logo + title */}
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <Shield size={32} className="text-cyan-400 animate-float" style={{ filter: 'drop-shadow(0 0 8px rgba(0,212,255,0.6))' }} />
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse-fast border border-cyber-bg" />
+    <header className="shrink-0 px-6 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+      {/* Brand */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-blue-600/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+          <Shield size={20} />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-black tracking-tight text-white glow-text-accent">
-              CSOC
+            <h1 className="text-base font-bold text-white tracking-tight">
+              CSOC Platform
             </h1>
-            <span className="text-xs text-slate-500 font-mono">|</span>
-            <span className="text-xs text-slate-400 font-semibold tracking-widest uppercase">
-              Cognitive Security Operations Center
+            <span className="text-slate-600 font-mono text-xs">/</span>
+            <span className="text-xs text-slate-300 font-medium tracking-wide">
+              Security Operations Center
             </span>
           </div>
-          <div className="flex items-center gap-3 mt-0.5">
-            <span className="text-[9px] text-slate-600 font-mono">v1.0.0-alpha</span>
-            <span className="text-[9px] text-slate-600 font-mono">•</span>
-            <span className="text-[9px] text-slate-600 font-mono">AI THREAT DETECTION ENGINE</span>
+          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
+            <span>PBL-2 Capstone Prototype</span>
+            <span>•</span>
+            <span className="text-slate-400 font-mono">Stream Engine: Active Ingestion</span>
           </div>
         </div>
       </div>
 
-      {/* Status indicators */}
+      {/* Status & Session info */}
       <div className="flex items-center gap-4">
-        <ThreatLevelBadge active={active} />
+        <ThreatStatusBadge active={active} />
 
-        <div className="text-right">
-          <div className="flex items-center justify-end gap-2 mb-0.5">
-            <div
-              className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400 animate-pulse' : 'bg-yellow-400 animate-bounce'}`}
-            />
-            <span className={`text-[10px] font-mono font-semibold ${connected ? 'text-green-400' : 'text-yellow-400'}`}>
-              {connected ? 'PIPELINE ONLINE' : 'RECONNECTING...'}
-            </span>
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-[9px] text-slate-600 font-mono">UPTIME</span>
-            <Uptime />
-          </div>
+        {/* Live indicator */}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs">
+          <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+          <span className={`font-mono text-xs font-medium ${connected ? 'text-emerald-400' : 'text-amber-400'}`}>
+            {connected ? 'PIPELINE ONLINE' : 'RECONNECTING'}
+          </span>
+        </div>
+
+        {/* User Pill */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-300">
+          <UserCheck size={14} className="text-blue-400" />
+          <span className="font-medium">Soham Mokashi</span>
+          <span className="text-[10px] text-slate-500 font-mono">Tier-2 Analyst</span>
+        </div>
+
+        {/* Uptime */}
+        <div className="flex items-center gap-1.5 text-xs text-slate-400 pl-1 border-l border-slate-800">
+          <Clock size={13} className="text-slate-500" />
+          <Uptime />
         </div>
       </div>
     </header>
   );
 }
 
-// ── App ───────────────────────────────────────────────────────────────────
+// ── App Layout ────────────────────────────────────────────────────────────
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { connected, logs, alerts, timeline, metrics, lastCritical } = useWebSocket();
@@ -125,87 +120,73 @@ export default function App() {
     if (lastCritical) setSelectedAlert(lastCritical);
   }, [lastCritical?.alert_id]);
 
-  // Global critical screen flash
-  const [screenFlash, setScreenFlash] = useState(false);
-  useEffect(() => {
-    if (lastCritical) {
-      setScreenFlash(true);
-      const t = setTimeout(() => setScreenFlash(false), 400);
-      return () => clearTimeout(t);
-    }
-  }, [lastCritical]);
-
   if (!isLoggedIn) {
     return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-cyber-bg noise-bg">
-      {/* Scanline effect */}
-      <div className="scanline-overlay" />
-
-      {/* Critical screen flash */}
-      {screenFlash && (
-        <div
-          className="fixed inset-0 pointer-events-none z-50"
-          style={{ background: 'rgba(255,45,85,0.06)', animation: 'none' }}
-        />
-      )}
-
-      {/* Header */}
+    <div className="h-screen flex flex-col overflow-hidden bg-slate-950 text-slate-100 font-sans">
+      {/* Top Header */}
       <Header connected={connected} active={metrics.active_threats} />
 
-      {/* Tab bar */}
-      <div className="shrink-0 px-4 pt-3 flex items-center gap-1 border-b border-cyber-border">
-        {[
-          { id: 'core', label: 'Core SOC', icon: LayoutDashboard },
-          { id: 'research', label: 'AI Research Modules', icon: FlaskConical },
-        ].map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-t-lg transition-all"
-            style={{
-              background: activeTab === id ? 'rgba(0,212,255,0.08)' : 'transparent',
-              color: activeTab === id ? '#00d4ff' : '#475569',
-              borderBottom: activeTab === id ? '2px solid #00d4ff' : '2px solid transparent',
-              marginBottom: -1,
-            }}
-          >
-            <Icon size={12} />
-            {label}
-          </button>
-        ))}
+      {/* Enterprise Tab Bar */}
+      <div className="shrink-0 px-6 pt-2 bg-slate-900/60 border-b border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          {[
+            { id: 'core', label: 'Incident Monitoring & Telemetry', icon: LayoutDashboard },
+            { id: 'research', label: 'Attack Investigation & MITRE ATT&CK®', icon: Network },
+          ].map(({ id, label, icon: Icon }) => {
+            const isActive = activeTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium rounded-t-lg transition-colors border-b-2 ${
+                  isActive
+                    ? 'border-blue-500 text-blue-400 bg-slate-900 font-semibold'
+                    : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+                }`}
+                style={{ marginBottom: -1 }}
+              >
+                <Icon size={14} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
         {selectedAlert && (
-          <span className="ml-auto text-[9px] font-mono text-slate-600">
-            Inspecting: <span className="text-cyan-600">{selectedAlert.alert_id}</span>
-          </span>
+          <div className="flex items-center gap-2 text-xs font-mono text-slate-400 pb-1">
+            <span className="text-slate-500">Active Investigation:</span>
+            <span className="text-blue-400 font-semibold">{selectedAlert.alert_id}</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-slate-300 font-semibold">{selectedAlert.attack_label || selectedAlert.protocol}</span>
+          </div>
         )}
       </div>
 
-      {/* Main content */}
-      <main className="flex-1 flex flex-col gap-3 p-4 overflow-hidden min-h-0">
-
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col gap-3 p-4 overflow-hidden min-h-0 bg-slate-950">
         {activeTab === 'core' ? (
           <>
-            {/* Row 1: Metric cards */}
+            {/* Row 1: KPI Metrics */}
             <MetricCards metrics={metrics} connected={connected} />
 
-            {/* Row 2: Pipeline view */}
+            {/* Row 2: Ingestion & Filter Pipeline */}
             <PipelineView metrics={metrics} />
 
-            {/* Row 3: Chart + Alert panel (takes remaining space) */}
+            {/* Row 3: Live Feed + Threat Curve + Incident Queue */}
             <div className="flex gap-3 flex-1 min-h-0">
-              {/* Left: Terminal feed */}
-              <div className="w-[28%] min-h-0">
+              {/* Left: Terminal stream (28%) */}
+              <div className="w-[30%] min-h-0">
                 <TerminalFeed logs={logs} />
               </div>
-              {/* Center: Threat chart */}
+              {/* Center: Threat velocity chart (flex-1) */}
               <div className="flex-1 min-h-0">
                 <ThreatChart timeline={timeline} />
               </div>
-              {/* Right: Alert panel */}
-              <div className="w-[27%] min-h-0">
+              {/* Right: Incident queue (28%) */}
+              <div className="w-[30%] min-h-0">
                 <AlertPanel
                   alerts={alerts}
                   connected={connected}
@@ -217,48 +198,45 @@ export default function App() {
           </>
         ) : (
           <>
-            {/* Research tab: Kill Chain + XAI + Telemetry */}
-            {/* Top row: metric strip */}
+            {/* Research & Investigation Tab */}
             <MetricCards metrics={metrics} connected={connected} />
 
-            {/* Bottom row: 3 research panels */}
             <div className="flex gap-3 flex-1 min-h-0">
-              {/* Kill Chain graph (45%) */}
+              {/* Kill Chain Attack Graph (45%) */}
               <div className="w-[45%] min-h-0">
                 <KillChainGraph alert={selectedAlert} />
               </div>
-              {/* XAI panel (30%) */}
-              <div className="w-[30%] min-h-0">
+              {/* XAI Narrative & Containment Playbook (32%) */}
+              <div className="w-[32%] min-h-0">
                 <XaiAlertPanel alert={selectedAlert} />
               </div>
-              {/* Telemetry radar (25%) */}
+              {/* Telemetry Visibility Radar (23%) */}
               <div className="flex-1 min-h-0">
                 <MitreRadar />
               </div>
             </div>
           </>
         )}
-
       </main>
 
-      {/* Footer */}
-      <footer className="shrink-0 px-6 py-2 border-t border-cyber-border flex items-center justify-between">
-        <div className="flex items-center gap-4 text-[9px] font-mono text-slate-700">
-          <span className="flex items-center gap-1">
-            <Cpu size={9} className="text-cyan-800" />
-            PIPELINE: 4-STAGE HEURISTIC + ML SCORING
+      {/* Enterprise Status Footer */}
+      <footer className="shrink-0 px-6 py-2 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <div className="flex items-center gap-4 text-[11px] font-mono">
+          <span className="flex items-center gap-1.5 text-slate-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            PIPELINE: 4-STAGE HEURISTIC + FEATURE ANOMALY ENGINE
           </span>
-          <span className="flex items-center gap-1">
-            <Globe size={9} className="text-cyan-800" />
-            WS: ws://localhost:8000/ws/alerts
+          <span className="text-slate-600">|</span>
+          <span className="text-slate-400">
+            DATA INTAKE: STREAMING WEBSOCKET (PORT 8000)
           </span>
-          <span className="flex items-center gap-1">
-            <Radio size={9} className="text-cyan-800" />
-            PROTOCOL: REAL-TIME WEBSOCKET STREAM
+          <span className="text-slate-600">|</span>
+          <span className="text-slate-400">
+            PERSISTENCE: SQLITE ORM
           </span>
         </div>
-        <div className="text-[9px] font-mono text-slate-700">
-          © 2026 CSOC — COGNITIVE SECURITY OPERATIONS CENTER — HACKATHON DEMO
+        <div className="text-[11px] text-slate-500 font-mono">
+          CSOC Enterprise Console • Department of Computer Engineering
         </div>
       </footer>
     </div>

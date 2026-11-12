@@ -1,4 +1,4 @@
- from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, JSON
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 import logging
 

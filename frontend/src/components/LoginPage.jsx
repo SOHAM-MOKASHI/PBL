@@ -1,159 +1,170 @@
-import { useState, useEffect } from 'react';
-import { Shield, KeyRound, User, Lock, Terminal, Activity } from 'lucide-react';
+import { useState } from 'react';
+import { Shield, KeyRound, User, Lock, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export function LoginPage({ onLogin }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [authStatus, setAuthStatus] = useState('AWAITING_INPUT'); // AWAITING_INPUT, VERIFYING, GRANTED
-  const [logs, setLogs] = useState([]);
+  const [username, setUsername] = useState('soham.analyst@csoc.internal');
+  const [password, setPassword] = useState('••••••••••••');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (!username || !password) return;
+    if (!username.trim() || !password.trim()) {
+      setError('Please provide valid analyst credentials');
+      return;
+    }
 
-    setIsAuthenticating(true);
-    setAuthStatus('VERIFYING');
-    
-    // Simulate auth sequence
-    const sequence = [
-      'Establishing secure tunnel...',
-      'Verifying operator credentials...',
-      'Checking clearance level...',
-      'Decrypting handshake...',
-      'ACCESS GRANTED.'
-    ];
+    setIsSubmitting(true);
+    setError('');
 
-    let i = 0;
-    const interval = setInterval(() => {
-      setLogs(prev => [...prev, sequence[i]]);
-      i++;
-      if (i === sequence.length) {
-        clearInterval(interval);
-        setAuthStatus('GRANTED');
-        setTimeout(() => {
-          onLogin();
-        }, 800);
-      }
-    }, 400);
+    // Seamless professional sign-in transition
+    setTimeout(() => {
+      setIsSubmitting(false);
+      onLogin();
+    }, 600);
   };
 
   return (
-    <div className="h-screen w-full flex items-center justify-center bg-cyber-bg noise-bg overflow-hidden relative">
-      {/* Scanline & Grid overlays */}
-      <div className="scanline-overlay z-0" />
-      <div className="absolute inset-0 hex-grid opacity-30 z-0" />
-
-      {/* Decorative background elements */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-900/10 rounded-full blur-[100px] pointer-events-none z-0" />
-      
-      <div className="z-10 w-full max-w-md p-6">
-        {/* Header/Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="relative mb-4">
-            <Shield size={64} className="text-cyan-400 animate-float" style={{ filter: 'drop-shadow(0 0 15px rgba(0,212,255,0.6))' }} />
-            <div className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-cyber-bg animate-pulse" />
-          </div>
-          <h1 className="text-4xl font-black tracking-tight text-white glow-text-accent mb-2">
-            CSOC
-          </h1>
-          <div className="text-xs text-slate-400 font-semibold tracking-[0.3em] uppercase">
-            Restricted Access
-          </div>
+    <div className="h-screen w-full flex flex-col justify-between bg-slate-950 text-slate-100 overflow-hidden font-sans">
+      {/* Top minimal status bar */}
+      <div className="px-6 py-3 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+          <span className="font-mono text-slate-300">SYSTEM STATUS: ALL TELEMETRY INGESTION PIPELINES NOMINAL</span>
         </div>
+        <div className="text-[11px] font-mono text-slate-500">
+          SECURE GATEWAY v1.2.0 • PORT 8000/5173
+        </div>
+      </div>
 
-        {/* Login Card */}
-        <div 
-          className="panel relative overflow-hidden backdrop-blur-md rounded-xl p-8 border"
-          style={{
-            background: 'rgba(10, 15, 30, 0.7)',
-            borderColor: 'rgba(0, 212, 255, 0.2)',
-            boxShadow: '0 0 40px rgba(0, 212, 255, 0.05), inset 0 0 20px rgba(0,212,255,0.02)'
-          }}
-        >
-          {/* Top accent line */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500/0 via-cyan-400 to-cyan-500/0" />
+      {/* Center login box */}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          {/* Brand header */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-blue-600/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <Shield size={22} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                CSOC Console
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800">
+                  Enterprise
+                </span>
+              </h1>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Cognitive Security Operations & Incident Response Platform
+              </p>
+            </div>
+          </div>
 
-          {authStatus === 'AWAITING_INPUT' && (
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-2 text-xs font-mono text-cyan-400 uppercase tracking-wider">
-                  <User size={12} /> Operator ID
+          {/* Card */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+            <div className="mb-5 pb-4 border-b border-slate-800">
+              <h2 className="text-sm font-semibold text-slate-200">Analyst Sign In</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Authenticate with your organizational security credentials
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-red-950/40 border border-red-800/60 flex items-center gap-2 text-xs text-red-400">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Analyst Identity (Email or UID)
                 </label>
                 <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                    <User size={15} />
+                  </div>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full bg-slate-900/50 border border-slate-700 rounded p-3 pl-10 text-slate-200 font-mono text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all placeholder-slate-600"
-                    placeholder="Enter ID..."
+                    className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors font-mono"
+                    placeholder="analyst@domain.com"
                     autoFocus
                   />
-                  <Terminal size={14} className="absolute left-3 top-3.5 text-slate-500" />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-2 text-xs font-mono text-cyan-400 uppercase tracking-wider">
-                  <KeyRound size={12} /> Passkey
-                </label>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-slate-300">
+                    Access Token / Password
+                  </label>
+                  <span className="text-[11px] text-blue-400 hover:underline cursor-pointer">
+                    MFA Assisted
+                  </span>
+                </div>
                 <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                    <KeyRound size={15} />
+                  </div>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-900/50 border border-slate-700 rounded p-3 pl-10 text-slate-200 font-mono text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all placeholder-slate-600"
-                    placeholder="••••••••"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors font-mono"
+                    placeholder="••••••••••••"
                   />
-                  <Lock size={14} className="absolute left-3 top-3.5 text-slate-500" />
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 text-xs text-slate-400">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    defaultChecked
+                    className="rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>Keep session active</span>
+                </label>
+                <span className="text-[11px] font-mono text-slate-500">Demo Role: Tier-2 Lead</span>
               </div>
 
               <button
                 type="submit"
-                className="w-full relative group overflow-hidden rounded py-3 px-4 font-mono font-bold text-sm uppercase tracking-widest transition-all mt-4"
-                style={{
-                  background: 'rgba(0, 212, 255, 0.1)',
-                  border: '1px solid rgba(0, 212, 255, 0.4)',
-                  color: '#00d4ff',
-                }}
+                disabled={isSubmitting}
+                className="w-full mt-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-900/20 disabled:opacity-60"
               >
-                <div className="absolute inset-0 w-full h-full bg-cyan-400/20 group-hover:bg-cyan-400/30 transition-all" />
-                <span className="relative flex items-center justify-center gap-2">
-                  Initiate Handshake <Activity size={14} />
-                </span>
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <span>Authorizing Session...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In to SOC Console</span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
               </button>
             </form>
-          )}
+          </div>
 
-          {/* Auth Sequence Overlay */}
-          {isAuthenticating && (
-            <div className="flex flex-col items-center justify-center h-48 space-y-4">
-              {authStatus === 'VERIFYING' ? (
-                <div className="relative">
-                  <div className="w-12 h-12 border-2 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
-                  <Lock size={16} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-cyan-400 animate-pulse" />
-                </div>
-              ) : (
-                <Shield size={48} className="text-green-400 drop-shadow-[0_0_10px_rgba(0,255,136,0.8)]" />
-              )}
-              
-              <div className="w-full bg-black/40 rounded p-3 font-mono text-[10px] text-cyan-400 text-left h-24 overflow-y-hidden flex flex-col justify-end border border-cyan-900/50">
-                {logs.map((log, i) => (
-                  <div key={i} className={i === logs.length - 1 ? 'animate-pulse font-bold text-white' : 'opacity-70'}>
-                    &gt; {log}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Project & Governance Note */}
+          <div className="mt-5 p-3 rounded-lg border border-slate-800/80 bg-slate-900/40 text-center">
+            <p className="text-[11px] text-slate-400">
+              Project-Based Learning (PBL-2) • Cybersecurity Operations Center Prototype
+            </p>
+            <p className="text-[10px] text-slate-500 mt-1">
+              Developed by Soham Mokashi • Guided by Department of Computer Engineering
+            </p>
+          </div>
         </div>
+      </div>
 
-        {/* Footer info */}
-        <div className="mt-8 text-center text-[9px] font-mono text-slate-500 uppercase tracking-widest">
-          <p>Unauthorised access is strictly prohibited</p>
-          <p className="mt-1">All authentication attempts are logged and monitored</p>
-        </div>
+      {/* Clean footer */}
+      <div className="px-6 py-3 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500">
+        <span>Restricted to authorized enterprise cyber operations personnel.</span>
+        <span>All sessions cryptographically signed and audited.</span>
       </div>
     </div>
   );

@@ -1,26 +1,20 @@
 /**
- * TerminalFeed.jsx — Component 1: Real-time scrolling log terminal
+ * TerminalFeed.jsx — Enterprise Real-Time Network Telemetry Stream
  */
 import { useRef, useEffect, useState } from 'react';
-import { Terminal } from 'lucide-react';
+import { Terminal, Pause, Play } from 'lucide-react';
 
-const SEVERITY_COLORS = {
-  CRITICAL: '#ff2d55',
-  HIGH: '#ff6b35',
-  MEDIUM: '#ffd700',
-  LOW: '#00ff88',
-  NORMAL: '#4a7a9b',
-};
-
-const TRAFFIC_COLORS = {
-  ATTACK: '#ff2d55',
-  SUSPICIOUS: '#ff6b35',
-  NORMAL: '#3d5a80',
+const SEVERITY_CONFIG = {
+  CRITICAL: { color: '#ef4444', text: 'text-red-400', bg: 'bg-red-950/40 border-red-800/80' },
+  HIGH:     { color: '#f97316', text: 'text-orange-400', bg: 'bg-orange-950/40 border-orange-800/80' },
+  MEDIUM:   { color: '#f59e0b', text: 'text-amber-400', bg: 'bg-amber-950/40 border-amber-800/80' },
+  LOW:      { color: '#10b981', text: 'text-emerald-400', bg: 'bg-emerald-950/40 border-emerald-800/80' },
+  NORMAL:   { color: '#64748b', text: 'text-slate-400', bg: 'bg-slate-900 border-slate-800' },
 };
 
 function formatBytes(b) {
   if (b >= 1_000_000) return `${(b / 1_000_000).toFixed(1)}MB`;
-  if (b >= 1_000) return `${(b / 1_000).toFixed(1)}KB`;
+  if (b >= 1_000) return `${(b / 1_000).toFixed(0)}KB`;
   return `${b}B`;
 }
 
@@ -33,73 +27,51 @@ function formatTs(ts) {
   });
 }
 
-function LogRow({ log, isNew }) {
+function LogRow({ log }) {
   const severity = log.severity || 'LOW';
-  const trafficType = log.traffic_type || 'NORMAL';
-  const color = SEVERITY_COLORS[severity];
-  const typeColor = TRAFFIC_COLORS[trafficType] || '#3d5a80';
+  const cfg = SEVERITY_CONFIG[severity] || SEVERITY_CONFIG.NORMAL;
 
   return (
-    <div
-      className={`flex items-start gap-2 py-1 px-2 rounded text-xs font-mono border-l-2 transition-all duration-300 ${
-        isNew ? 'animate-slide-in bg-opacity-10' : ''
-      }`}
-      style={{
-        borderLeftColor: color,
-        backgroundColor: isNew ? `${color}08` : 'transparent',
-      }}
-    >
+    <div className="flex items-center gap-2 py-1 px-2 rounded hover:bg-slate-800/60 transition-colors text-[11px] font-mono border-b border-slate-900/60">
       {/* Timestamp */}
-      <span className="text-slate-600 shrink-0 w-16">{formatTs(log.timestamp)}</span>
+      <span className="text-slate-500 shrink-0 w-14">{formatTs(log.timestamp)}</span>
 
-      {/* Stage badge */}
-      <span
-        className="shrink-0 text-[9px] px-1 rounded border font-bold"
-        style={{ color: '#00d4ff', borderColor: 'rgba(0,212,255,0.3)', background: 'rgba(0,212,255,0.08)' }}
-      >
+      {/* Stage */}
+      <span className="shrink-0 text-[10px] px-1 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
         S{log.stage}
       </span>
 
-      {/* Severity */}
-      <span
-        className="shrink-0 text-[10px] font-bold w-12"
-        style={{ color }}
-      >
+      {/* Severity Badge */}
+      <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.2 rounded border ${cfg.bg} ${cfg.text} w-16 text-center`}>
         {severity}
       </span>
 
       {/* IPs */}
-      <span className="shrink-0">
-        <span className="ip-chip">{log.src_ip}</span>
-        <span className="text-slate-600 mx-1">→</span>
-        <span className="ip-chip">{log.dst_ip}</span>
+      <span className="shrink-0 flex items-center gap-1 text-slate-300">
+        <span className="text-blue-300">{log.src_ip}</span>
+        <span className="text-slate-600">→</span>
+        <span className="text-slate-300">{log.dst_ip}</span>
       </span>
 
-      {/* Port/Proto */}
+      {/* Port & Protocol */}
       <span className="text-slate-500 shrink-0">
         :{log.dst_port}
-        <span className="ml-1 text-slate-600">[{log.protocol}]</span>
+        <span className="ml-1 text-slate-400 text-[10px]">[{log.protocol}]</span>
       </span>
 
-      {/* Bytes */}
-      <span className="text-slate-500 shrink-0">
-        ↑{formatBytes(log.bytes_sent)} ↓{formatBytes(log.bytes_recv)}
+      {/* Bytes Sent / Received */}
+      <span className="text-slate-500 shrink-0 ml-auto text-[10px]">
+        ↑{formatBytes(log.bytes_sent)}
       </span>
 
       {/* Score */}
-      <span
-        className="shrink-0 font-bold text-[10px]"
-        style={{ color }}
-      >
-        {log.threat_score?.toFixed(0) ?? '–'}pts
+      <span className={`shrink-0 font-bold text-[11px] w-12 text-right ${cfg.text}`}>
+        {Math.round(log.threat_score ?? 0)} pts
       </span>
 
-      {/* Attack label */}
-      {log.attack_label && (
-        <span
-          className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold"
-          style={{ background: `${color}20`, color, border: `1px solid ${color}40` }}
-        >
+      {/* Attack Label Pill */}
+      {log.attack_label && log.attack_label !== 'DEFAULT' && (
+        <span className={`shrink-0 text-[10px] px-1.5 py-0.2 rounded border font-semibold ${cfg.bg} ${cfg.text}`}>
           {log.attack_label}
         </span>
       )}
@@ -126,59 +98,57 @@ export function TerminalFeed({ logs }) {
   };
 
   return (
-    <div className="panel flex flex-col h-full">
+    <div className="bg-slate-900 border border-slate-800 rounded-lg flex flex-col h-full overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-cyber-border shrink-0">
+      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-800 bg-slate-900 shrink-0">
         <div className="flex items-center gap-2">
-          <Terminal size={14} className="text-cyan-400" />
-          <span className="text-xs font-semibold text-slate-300 tracking-wide uppercase">
-            Live Traffic Feed
+          <Terminal size={14} className="text-blue-400" />
+          <span className="text-xs font-semibold text-slate-200">
+            Live Telemetry Stream
           </span>
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-600 font-mono">{logs.length} entries</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-slate-400 font-mono">{logs.length} flows</span>
           <button
             onClick={() => setAutoScroll(!autoScroll)}
-            className="text-xs px-2 py-0.5 rounded border transition-colors"
-            style={{
-              borderColor: autoScroll ? 'rgba(0,212,255,0.4)' : '#1a2744',
-              color: autoScroll ? '#00d4ff' : '#3d5a80',
-              background: autoScroll ? 'rgba(0,212,255,0.08)' : 'transparent',
-            }}
+            className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
           >
-            {autoScroll ? '⏩ AUTO' : '⏸ PAUSED'}
+            {autoScroll ? (
+              <>
+                <Pause size={10} /> Auto
+              </>
+            ) : (
+              <>
+                <Play size={10} /> Paused
+              </>
+            )}
           </button>
         </div>
       </div>
 
-      {/* Column headers */}
-      <div className="flex items-center gap-2 px-2 py-1 border-b border-cyber-border/50 text-[9px] text-slate-600 uppercase tracking-widest font-mono shrink-0">
-        <span className="w-16">TIME</span>
+      {/* Column Headers */}
+      <div className="flex items-center gap-2 px-3 py-1 bg-slate-950 border-b border-slate-800 text-[10px] text-slate-500 uppercase tracking-wider font-mono shrink-0">
+        <span className="w-14">TIME</span>
         <span className="w-6">STG</span>
-        <span className="w-12">SEV</span>
-        <span className="flex-1">SRC → DST</span>
-        <span>PORT</span>
-        <span className="ml-auto">SCORE</span>
+        <span className="w-16">SEVERITY</span>
+        <span className="flex-1">FLOW (SRC → DST:PORT)</span>
+        <span className="ml-auto">RISK SCORE</span>
       </div>
 
-      {/* Log rows */}
+      {/* Log Rows */}
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="terminal-feed flex-1 overflow-y-auto py-1 space-y-0.5 min-h-0"
+        className="flex-1 overflow-y-auto p-1.5 space-y-0.5 min-h-0 bg-slate-950"
       >
         {logs.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="text-slate-600 text-xs font-mono animate-pulse">
-                ▮ Waiting for traffic stream...
-              </div>
-            </div>
+          <div className="flex items-center justify-center h-full text-slate-500 text-xs font-mono">
+            Waiting for telemetry packets...
           </div>
         ) : (
           logs.map((log, i) => (
-            <LogRow key={`${log.alert_id}-${i}`} log={log} isNew={i === 0} />
+            <LogRow key={`${log.alert_id || log.timestamp}-${i}`} log={log} />
           ))
         )}
         <div ref={bottomRef} />
