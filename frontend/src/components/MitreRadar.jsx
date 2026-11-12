@@ -5,7 +5,9 @@
 import { useState, useEffect } from 'react';
 import { Eye, EyeOff, AlertTriangle, Wifi, Activity } from 'lucide-react';
 
-const TELEMETRY_API = 'http://localhost:8000/api/telemetry';
+const TELEMETRY_API = typeof window !== 'undefined' && window.location.port === '5173'
+  ? `http://${window.location.hostname}:8000/api/telemetry`
+  : '/api/telemetry';
 
 function CoverageRow({ name, coverage, active }) {
   const color = active ? (coverage >= 85 ? '#00ff88' : '#ffd700') : '#3d5a80';

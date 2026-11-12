@@ -141,7 +141,7 @@ export function LoginPage({ onLogin }) {
               <div className="w-full bg-black/40 rounded p-3 font-mono text-[10px] text-cyan-400 text-left h-24 overflow-y-hidden flex flex-col justify-end border border-cyan-900/50">
                 {logs.map((log, i) => (
                   <div key={i} className={i === logs.length - 1 ? 'animate-pulse font-bold text-white' : 'opacity-70'}>
-                    > {log}
+                    &gt; {log}
                   </div>
                 ))}
               </div>

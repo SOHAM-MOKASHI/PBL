@@ -9,6 +9,7 @@ import math
 import random
 import time
 from collections import defaultdict, deque
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -20,9 +21,35 @@ from novelty_engine import generate_xai_narrative, get_telemetry_coverage
 from database import init_db, load_config, save_alert, save_config
 
 # ---------------------------------------------------------------------------
+# App lifespan context manager (modern FastAPI standard, replaces on_event)
+# ---------------------------------------------------------------------------
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global CURRENT_ALERT_THRESHOLD, BENIGN_WHITELIST
+    # Initialize DB (creates sqlite schema if not present)
+    init_db()
+
+    # Load persistent configurations if they exist
+    t, w = load_config()
+    CURRENT_ALERT_THRESHOLD = t
+    BENIGN_WHITELIST = w
+
+    traffic_task = asyncio.create_task(run_traffic_generator())
+    pipeline_task = asyncio.create_task(process_pipeline())
+    print("[OK] CSOC Backend started -- traffic generator, DB & pipeline running.")
+
+    try:
+        yield
+    finally:
+        traffic_task.cancel()
+        pipeline_task.cancel()
+        print("[STOP] CSOC Backend shutting down.")
+
+
+# ---------------------------------------------------------------------------
 # App init
 # ---------------------------------------------------------------------------
-app = FastAPI(title="CSOC Backend", version="1.0.0")
+app = FastAPI(title="CSOC Backend", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -184,6 +211,8 @@ def stage4_alert_generation(raw: dict) -> dict:
         state.active_threats = min(state.active_threats + 1, 50)
     elif score >= 60:
         severity = "HIGH"
+        state.total_alerts += 1
+        state.active_threats = min(state.active_threats + 1, 50)
     elif score >= 35:
         severity = "MEDIUM"
     else:
@@ -475,26 +504,4 @@ async def feedback_endpoint(ws: WebSocket):
         feedback_manager.disconnect(ws)
 
 
-# ---------------------------------------------------------------------------
-# Startup / shutdown
-# ---------------------------------------------------------------------------
 
-@app.on_event("startup")
-async def startup_event():
-    global CURRENT_ALERT_THRESHOLD, BENIGN_WHITELIST
-    # Initialize DB (creates sqlite file on startup automatically)
-    init_db()
-    
-    # Load persistent configurations if they exist
-    t, w = load_config()
-    CURRENT_ALERT_THRESHOLD = t
-    BENIGN_WHITELIST = w
-    
-    asyncio.create_task(run_traffic_generator())
-    asyncio.create_task(process_pipeline())
-    print("[OK] CSOC Backend started -- traffic generator, DB & pipeline running.")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    print("[STOP] CSOC Backend shutting down.")

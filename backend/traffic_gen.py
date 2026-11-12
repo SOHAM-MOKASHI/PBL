@@ -29,7 +29,7 @@ SCAN_PORTS = list(range(1, 1025))
 
 PROTOCOLS = ["TCP", "UDP", "ICMP", "HTTP", "HTTPS", "SSH", "FTP", "SMTP"]
 
-ATTACK_TYPES = ["DDoS", "Port Scan", "Data Exfiltration", "Brute Force", "SQL Injection"]
+ATTACK_TYPES = ["DDoS", "Port Scan", "Data Exfiltration", "Brute Force"]
 
 # ---------------------------------------------------------------------------
 # Log event dataclass
@@ -246,27 +246,41 @@ async def run_traffic_generator():
                 for row in reader:
                     lbl = row.get("Label", "BENIGN")
                     is_benign = lbl.upper() == "BENIGN"
+                    # Normalize attack label so MITRE & KillChain match exactly
+                    norm_label = "Port Scan" if lbl == "PortScan" else lbl
+
+                    dst_port = int(row.get("Destination Port", row.get("dst_port", 80)))
+                    proto_raw = str(row.get("Protocol", "6")).strip()
+                    proto_map = {"6": "TCP", "17": "UDP", "1": "ICMP"}
+                    protocol = proto_map.get(proto_raw, proto_raw if proto_raw.isalpha() else "TCP")
+                    if dst_port == 22 and not is_benign:
+                        protocol = "SSH"
+                    elif dst_port == 3389 and not is_benign:
+                        protocol = "RDP"
+
+                    ttl = random.choice([5, 10, 32]) if norm_label == "DDoS" else 64
+
                     log = NetworkLog(
                         timestamp=time.time(),
                         src_ip=row.get("Source IP", row.get("src_ip", _random_external_ip())),
                         dst_ip=row.get("Destination IP", row.get("dst_ip", _random_internal_ip())),
                         src_port=int(row.get("Source Port", row.get("src_port", random.randint(1024, 65535)))),
-                        dst_port=int(row.get("Destination Port", row.get("dst_port", 80))),
-                        protocol=row.get("Protocol", "TCP"),
+                        dst_port=dst_port,
+                        protocol=protocol,
                         bytes_sent=int(row.get("Fwd Packet Length Total", row.get("bytes_sent", 500))),
                         bytes_recv=int(row.get("Bwd Packet Length Total", row.get("bytes_recv", 500))),
                         duration_ms=float(row.get("Flow Duration", row.get("duration_ms", 100.0))) / 1000.0,
                         traffic_type=TrafficType.NORMAL if is_benign else TrafficType.ATTACK,
-                        attack_label="DEFAULT" if is_benign else lbl,
+                        attack_label="DEFAULT" if is_benign else norm_label,
                         packet_count=int(row.get("Total Fwd Packets", row.get("packet_count", 5))),
-                        ttl=64,
-                        flags="ACK"
+                        ttl=ttl,
+                        flags="ACK" if is_benign else "SYN"
                     )
                     try:
                         log_queue.put_nowait(log)
                     except asyncio.QueueFull:
                         pass
-                    await asyncio.sleep(2.8) # Pacing calibration: exactly 2.8 seconds
+                    await asyncio.sleep(1.2) # Calibrated pacing for live interactive demo
             print("[INFO] Reached end of dataset, restarting loop...")
 
     # Fallback: Random generation

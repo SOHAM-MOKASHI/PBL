@@ -115,6 +115,11 @@ export default function App() {
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [activeTab, setActiveTab] = useState('core'); // 'core' | 'research'
 
+  const handleSelectAlert = (alert) => {
+    setSelectedAlert(alert);
+    setActiveTab('research');
+  };
+
   // Auto-select latest critical alert for research panel
   useEffect(() => {
     if (lastCritical) setSelectedAlert(lastCritical);
@@ -205,7 +210,7 @@ export default function App() {
                   alerts={alerts}
                   connected={connected}
                   lastCritical={lastCritical}
-                  onSelectAlert={setSelectedAlert}
+                  onSelectAlert={handleSelectAlert}
                 />
               </div>
             </div>

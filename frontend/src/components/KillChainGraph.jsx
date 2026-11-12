@@ -140,6 +140,7 @@ function buildGraph(alert) {
   const chainMap = {
     'DDoS':            [{ label: 'Botnet C2', tactic: 'C&C', mitre: 'T1583' }, { label: 'DDoS', tactic: 'Impact', mitre: 'T1498' }],
     'Port Scan':       [{ label: 'Reconnaissance', tactic: 'Recon', mitre: 'T1595' }, { label: 'Port Scan', tactic: 'Discovery', mitre: 'T1046' }],
+    'PortScan':        [{ label: 'Reconnaissance', tactic: 'Recon', mitre: 'T1595' }, { label: 'Port Scan', tactic: 'Discovery', mitre: 'T1046' }],
     'Data Exfiltration': [{ label: 'Brute Force', tactic: 'Credential', mitre: 'T1110' }, { label: 'Data Exfiltration', tactic: 'Exfil', mitre: 'T1041' }],
     'Brute Force':     [{ label: 'Brute Force', tactic: 'Credential', mitre: 'T1110' }, { label: 'C2 Beacon', tactic: 'C&C', mitre: 'T1071' }],
   };

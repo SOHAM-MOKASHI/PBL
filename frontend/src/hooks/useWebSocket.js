@@ -3,7 +3,18 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const WS_URL = 'ws://localhost:8000/ws/alerts';
+const getWsUrl = () => {
+  if (typeof window !== 'undefined') {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    if (window.location.port === '5173') {
+      return `${proto}//${window.location.hostname}:8000/ws/alerts`;
+    }
+    return `${proto}//${window.location.host}/ws/alerts`;
+  }
+  return 'ws://localhost:8000/ws/alerts';
+};
+
+const WS_URL = getWsUrl();
 const MAX_LOGS = 150;
 const MAX_ALERTS = 80;
 const MAX_TIMELINE = 60;

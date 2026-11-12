@@ -8,7 +8,18 @@ import {
   Shield, Zap, AlertTriangle, ExternalLink, Download, FileText
 } from 'lucide-react';
 
-const WS_FEEDBACK_URL = 'ws://localhost:8000/ws/feedback';
+const getFeedbackWsUrl = () => {
+  if (typeof window !== 'undefined') {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    if (window.location.port === '5173') {
+      return `${proto}//${window.location.hostname}:8000/ws/feedback`;
+    }
+    return `${proto}//${window.location.host}/ws/feedback`;
+  }
+  return 'ws://localhost:8000/ws/feedback';
+};
+
+const WS_FEEDBACK_URL = getFeedbackWsUrl();
 
 function MitreBadge({ techniqueId, techniqueName, tactic }) {
   return (
