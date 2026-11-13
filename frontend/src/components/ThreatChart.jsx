@@ -1,28 +1,24 @@
-/**
- * ThreatChart.jsx — Enterprise Real-Time Anomaly Intensity Timeline
- */
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine
 } from 'recharts';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, AlertCircle } from 'lucide-react';
 
 const CRITICAL_THRESHOLD = 85;
-const HIGH_THRESHOLD = 60;
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-900 border border-slate-700 p-2.5 rounded-lg shadow-lg text-xs font-mono">
-      <p className="text-slate-400 mb-1.5 font-medium">{label}</p>
+    <div className="bg-white border border-slate-200 p-2.5 rounded-lg shadow-md text-xs font-mono">
+      <p className="text-slate-500 mb-1 font-semibold">{label}</p>
       {payload.map((p) => (
         <div key={p.dataKey} className="flex items-center justify-between gap-4 text-[11px]" style={{ color: p.color }}>
-          <span className="text-slate-400">{p.name}:</span>
+          <span className="text-slate-600 font-medium">{p.name}:</span>
           <span className="font-bold">{p.value} pts</span>
         </div>
       ))}
       {payload[0]?.payload?.count && (
-        <p className="text-slate-500 mt-1 text-[10px] border-t border-slate-800 pt-1">
+        <p className="text-slate-400 mt-1 text-[10px] border-t border-slate-100 pt-1">
           {payload[0].payload.count} aggregated packets in window
         </p>
       )}
@@ -31,68 +27,69 @@ function CustomTooltip({ active, payload, label }) {
 }
 
 export function ThreatChart({ timeline }) {
-  const data = timeline.slice(-60);
+  const data = timeline.slice(-50);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-3.5 h-full flex flex-col shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2.5 shrink-0">
-        <div>
-          <div className="flex items-center gap-2">
-            <TrendingUp size={15} className="text-blue-400" />
-            <h3 className="text-xs font-semibold text-slate-200">
-              Threat Intensity Velocity
-            </h3>
+    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 shrink-0 gap-2">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
+            <TrendingUp size={16} />
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">
-            Rolling 60-second window • Anomaly score distribution (0–100)
-          </p>
+          <div>
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Real-Time Threat Score Velocity
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              Live anomaly intensity timeline (0–100 pts) across incoming network telemetry
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 text-[11px] font-mono">
-          <span className="flex items-center gap-1.5 text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-red-500" />
-            <span>Critical (&gt;85)</span>
-          </span>
-          <span className="flex items-center gap-1.5 text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-orange-500" />
-            <span>High (&gt;60)</span>
-          </span>
+        <div className="flex items-center gap-3 text-xs font-medium">
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+            <span>Average Score</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+            <span>Peak Incident</span>
+          </div>
         </div>
       </div>
 
       {data.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-slate-500 text-xs font-mono">
-          Accumulating time-series data...
+        <div className="flex-1 flex items-center justify-center text-slate-400 text-xs font-mono">
+          Accumulating live time-series stream...
         </div>
       ) : (
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-[180px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 8, right: 10, left: -22, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 8, right: 10, left: -20, bottom: 0 }}>
               <defs>
-                <linearGradient id="avgGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
+                <linearGradient id="lightAvgGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
                 </linearGradient>
-                <linearGradient id="peakGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                <linearGradient id="lightPeakGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15} />
                   <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis
                 dataKey="time"
-                tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }}
                 tickLine={false}
-                axisLine={{ stroke: '#1f2937' }}
+                axisLine={{ stroke: '#e2e8f0' }}
                 interval="preserveStartEnd"
               />
               <YAxis
                 domain={[0, 100]}
-                tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }}
                 tickLine={false}
-                axisLine={{ stroke: '#1f2937' }}
+                axisLine={{ stroke: '#e2e8f0' }}
               />
               <Tooltip content={<CustomTooltip />} />
 
@@ -100,34 +97,33 @@ export function ThreatChart({ timeline }) {
                 y={CRITICAL_THRESHOLD}
                 stroke="#ef4444"
                 strokeDasharray="4 4"
-                strokeWidth={1}
-                label={{ value: 'CRITICAL', fill: '#ef4444', fontSize: 9, fontFamily: 'JetBrains Mono', position: 'right' }}
-              />
-              <ReferenceLine
-                y={HIGH_THRESHOLD}
-                stroke="#f97316"
-                strokeDasharray="4 4"
-                strokeWidth={1}
-                label={{ value: 'HIGH', fill: '#f97316', fontSize: 9, fontFamily: 'JetBrains Mono', position: 'right' }}
+                label={{
+                  value: 'Critical Threshold (85)',
+                  position: 'insideTopRight',
+                  fill: '#ef4444',
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}
               />
 
               <Area
                 type="monotone"
-                dataKey="max_score"
-                name="Peak Anomaly Score"
-                stroke="#ef4444"
-                strokeWidth={1.5}
-                fill="url(#peakGrad)"
-                dot={false}
+                dataKey="avg_score"
+                name="Avg Threat Score"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                fill="url(#lightAvgGrad)"
+                isAnimationActive={false}
               />
               <Area
                 type="monotone"
-                dataKey="avg_score"
-                name="Mean Threat Score"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                fill="url(#avgGrad)"
-                dot={false}
+                dataKey="max_score"
+                name="Peak Score"
+                stroke="#ef4444"
+                strokeWidth={1.5}
+                strokeDasharray="3 3"
+                fill="url(#lightPeakGrad)"
+                isAnimationActive={false}
               />
             </AreaChart>
           </ResponsiveContainer>

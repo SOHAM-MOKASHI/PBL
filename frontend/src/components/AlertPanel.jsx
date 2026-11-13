@@ -1,168 +1,190 @@
-/**
- * AlertPanel.jsx — Enterprise SOC Prioritized Incident Queue
- */
-import { useState, useEffect } from 'react';
-import { AlertCircle, ChevronRight, X, ExternalLink, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, ChevronRight, X, ShieldAlert, CheckCircle } from 'lucide-react';
 
 const SEVERITY_CONFIG = {
-  CRITICAL: { color: 'border-l-red-500', badge: 'bg-red-950/60 text-red-400 border-red-800/80', score: 'text-red-400' },
-  HIGH:     { color: 'border-l-orange-500', badge: 'bg-orange-950/60 text-orange-400 border-orange-800/80', score: 'text-orange-400' },
-  MEDIUM:   { color: 'border-l-amber-500', badge: 'bg-amber-950/60 text-amber-400 border-amber-800/80', score: 'text-amber-400' },
-  LOW:      { color: 'border-l-emerald-500', badge: 'bg-emerald-950/60 text-emerald-400 border-emerald-800/80', score: 'text-emerald-400' },
+  CRITICAL: {
+    border: 'border-l-red-500',
+    badge: 'bg-red-50 text-red-700 border-red-200',
+    score: 'text-red-600',
+  },
+  HIGH: {
+    border: 'border-l-orange-500',
+    badge: 'bg-orange-50 text-orange-700 border-orange-200',
+    score: 'text-orange-600',
+  },
+  MEDIUM: {
+    border: 'border-l-amber-500',
+    badge: 'bg-amber-50 text-amber-700 border-amber-200',
+    score: 'text-amber-600',
+  },
+  LOW: {
+    border: 'border-l-emerald-500',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    score: 'text-emerald-600',
+  },
 };
 
 function formatTs(ts) {
+  if (!ts) return '';
   return new Date(ts * 1000).toLocaleTimeString('en-US', { hour12: false });
 }
 
 function formatBytes(b) {
+  if (!b) return '0 B';
   if (b >= 1_000_000) return `${(b / 1_000_000).toFixed(1)} MB`;
   if (b >= 1_000) return `${(b / 1_000).toFixed(0)} KB`;
   return `${b} B`;
 }
 
-function AlertCard({ alert, onDismiss, onSelect }) {
+function AlertCard({ alert, onDismiss, onSelect, isSelected }) {
   const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.LOW;
 
   return (
     <div
-      className={`bg-slate-900 border border-slate-800 border-l-4 ${cfg.color} rounded-lg p-3 mb-2 hover:border-slate-700 transition-colors shadow-sm`}
+      onClick={() => onSelect && onSelect(alert)}
+      className={`cursor-pointer bg-white border rounded-xl p-3.5 mb-2.5 transition-all shadow-xs border-l-4 ${cfg.border} ${
+        isSelected ? 'ring-2 ring-blue-500 bg-blue-50/20' : 'hover:border-slate-300'
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          {/* Header row: Severity + Attack Label + Timestamp */}
-          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${cfg.badge}`}>
+          {/* Header row: Severity + Attack label + Timestamp */}
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badge}`}>
               {alert.severity}
             </span>
 
             {alert.attack_label && alert.attack_label !== 'DEFAULT' && (
-              <span className="text-[10px] font-semibold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+              <span className="text-[11px] font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                 {alert.attack_label}
               </span>
             )}
 
-            <span className="text-[10px] text-slate-500 font-mono ml-auto">
+            <span className="text-[11px] text-slate-400 font-mono ml-auto">
               {formatTs(alert.timestamp)}
             </span>
           </div>
 
           {/* Flow details */}
-          <div className="space-y-1 text-xs font-mono">
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <span className="text-blue-300 font-medium">{alert.src_ip}</span>
-              <span className="text-slate-600">→</span>
-              <span className="text-slate-300">{alert.dst_ip}:{alert.dst_port}</span>
+          <div className="space-y-0.5 text-xs font-mono mt-1.5">
+            <div className="flex items-center gap-1.5 text-slate-700">
+              <span className="font-semibold text-blue-700">{alert.src_ip}</span>
+              <span className="text-slate-400">→</span>
+              <span className="text-slate-800">{alert.dst_ip}:{alert.dst_port}</span>
             </div>
 
-            <div className="flex items-center gap-3 text-[11px] text-slate-400">
-              <span>Proto: <strong className="text-slate-300">{alert.protocol}</strong></span>
-              <span>Payload: <strong className="text-slate-300">{formatBytes(alert.bytes_sent)}</strong></span>
+            <div className="flex items-center gap-3 text-[11px] text-slate-500">
+              <span>Proto: <strong className="text-slate-700 font-sans">{alert.protocol}</strong></span>
+              <span>Payload: <strong className="text-slate-700 font-sans">{formatBytes(alert.bytes_sent)}</strong></span>
             </div>
           </div>
         </div>
 
         {/* Threat score pill */}
-        <div className="shrink-0 flex flex-col items-center justify-center p-2 rounded-lg bg-slate-950 border border-slate-800 min-w-[50px]">
+        <div className="shrink-0 flex flex-col items-center justify-center p-2 rounded-lg bg-slate-50 border border-slate-200 min-w-[52px]">
           <span className={`text-base font-bold font-mono ${cfg.score}`}>
             {Math.round(alert.threat_score ?? 0)}
           </span>
-          <span className="text-[9px] text-slate-500 uppercase font-mono">Score</span>
+          <span className="text-[9px] text-slate-400 uppercase font-sans font-semibold">Score</span>
         </div>
       </div>
 
-      {/* Footer: ID + Investigate button */}
-      <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-500">
-        <span>{alert.alert_id}</span>
+      {/* Footer */}
+      <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+        <span className="font-mono text-slate-400">{alert.alert_id}</span>
 
         <div className="flex items-center gap-2">
           {onSelect && (
-            <button
-              onClick={() => onSelect(alert)}
-              className="flex items-center gap-1 text-[11px] font-medium text-blue-400 hover:text-blue-300 bg-blue-950/40 hover:bg-blue-900/60 border border-blue-800/80 px-2 py-1 rounded transition-colors"
-            >
-              <span>Investigate</span>
-              <ChevronRight size={12} />
-            </button>
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800">
+              <span>View Analysis</span>
+              <ChevronRight size={13} />
+            </span>
           )}
 
-          <button
-            onClick={() => onDismiss(alert.alert_id)}
-            title="Acknowledge alert"
-            className="text-slate-500 hover:text-slate-300 p-1 rounded hover:bg-slate-800 transition-colors"
-          >
-            <X size={12} />
-          </button>
+          {onDismiss && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDismiss(alert.alert_id);
+              }}
+              title="Acknowledge Alert"
+              className="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100"
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-export function AlertPanel({ alerts, connected, lastCritical, onSelectAlert }) {
+export function AlertPanel({ alerts = [], connected, lastCritical, onSelectAlert, selectedAlertId }) {
   const [dismissed, setDismissed] = useState(new Set());
-  const [showNotification, setShowNotification] = useState(false);
+  const [filter, setFilter] = useState('ALL');
 
-  useEffect(() => {
-    if (lastCritical) {
-      setShowNotification(true);
-      const t = setTimeout(() => setShowNotification(false), 4500);
-      return () => clearTimeout(t);
-    }
-  }, [lastCritical]);
+  const visibleAlerts = alerts
+    .filter((a) => !dismissed.has(a.alert_id))
+    .filter((a) => (filter === 'ALL' ? true : a.severity === filter));
 
-  const visible = alerts.filter(a => !dismissed.has(a.alert_id));
+  const handleDismiss = (id) => {
+    setDismissed((prev) => new Set([...prev, id]));
+  };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg flex flex-col h-full overflow-hidden shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-800 bg-slate-900 shrink-0">
+      <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
         <div className="flex items-center gap-2">
-          <AlertCircle size={15} className="text-orange-400" />
-          <span className="text-xs font-semibold text-slate-200">
-            Incident Triage Queue
-          </span>
+          <div className="p-1.5 rounded-lg bg-orange-50 text-orange-600 border border-orange-100">
+            <ShieldAlert size={16} />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Flagged Threat Alerts ({visibleAlerts.length})
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              High priority network anomalies flagged by AI engine
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-            {visible.length} active
-          </span>
+
+        {/* Severity filter pills */}
+        <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 text-[10px]">
+          {['ALL', 'CRITICAL', 'HIGH'].map((lvl) => (
+            <button
+              key={lvl}
+              onClick={() => setFilter(lvl)}
+              className={`px-2 py-0.5 rounded font-semibold transition-colors ${
+                filter === lvl
+                  ? 'bg-white text-slate-800 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {lvl}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Critical Toast Banner */}
-      {showNotification && lastCritical && (
-        <div className="mx-3 mt-2 p-2.5 rounded-lg bg-red-950/60 border border-red-800/80 text-xs text-red-300 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-bold text-red-400 shrink-0">CRITICAL INCIDENT</span>
-            <span className="text-slate-300 truncate">
-              {lastCritical.attack_label || 'Anomalous traffic'} from {lastCritical.src_ip}
-            </span>
-          </div>
-          <button
-            onClick={() => onSelectAlert && onSelectAlert(lastCritical)}
-            className="text-[11px] font-medium text-white bg-red-600 hover:bg-red-500 px-2 py-0.5 rounded ml-2 shrink-0 transition-colors"
-          >
-            Review
-          </button>
-        </div>
-      )}
-
-      {/* Alerts list */}
-      <div className="flex-1 overflow-y-auto p-3 min-h-0 bg-slate-950">
-        {visible.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-500 text-xs">
-            <ShieldCheck size={28} className="text-emerald-500/60 mb-2" />
-            <p className="font-medium text-slate-400">All incidents triaged</p>
-            <p className="text-[11px] text-slate-500 mt-0.5">Monitoring incoming NetFlow stream...</p>
+      {/* Alert list */}
+      <div className="flex-1 overflow-y-auto p-3 bg-slate-50/50">
+        {visibleAlerts.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
+            <CheckCircle size={32} className="text-emerald-500 mb-2" />
+            <p className="text-xs font-semibold text-slate-600">No Elevated Incidents</p>
+            <p className="text-[11px] text-slate-400 mt-1 max-w-xs">
+              Incoming network telemetry is currently within normal statistical thresholds.
+            </p>
           </div>
         ) : (
-          visible.map((alert, idx) => (
+          visibleAlerts.map((alert) => (
             <AlertCard
-              key={`${alert.alert_id}-${idx}`}
+              key={alert.alert_id}
               alert={alert}
-              onDismiss={(id) => setDismissed(p => new Set([...p, id]))}
+              onDismiss={handleDismiss}
               onSelect={onSelectAlert}
+              isSelected={selectedAlertId === alert.alert_id}
             />
           ))
         )}
