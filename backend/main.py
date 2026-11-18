@@ -722,12 +722,18 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 
 
 @app.get("/vulnerable-login", response_class=HTMLResponse)
+@app.get("/vulnerable-logi", response_class=HTMLResponse)
+@app.get("/login", response_class=HTMLResponse)
+@app.get("/portal", response_class=HTMLResponse)
 async def vulnerable_login_page():
     """Serves the standalone authentication portal."""
     return CAMPUS_PORTAL_HTML
 
 
 @app.post("/vulnerable-login")
+@app.post("/vulnerable-logi")
+@app.post("/login")
+@app.post("/portal")
 async def vulnerable_login_post(request: Request):
     """
     Direct POST target for form-based attack tools (e.g. Hydra, Burp, curl).
