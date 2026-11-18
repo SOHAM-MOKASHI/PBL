@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import {
-  Shield, LayoutDashboard, ShieldAlert, Settings, Zap,
+  Shield, LayoutDashboard, ShieldAlert, Settings,
   LogOut, Clock, UserCheck, Activity, CheckCircle2
 } from 'lucide-react';
 import { MetricCards } from './components/MetricCards';
@@ -14,7 +14,6 @@ import { TerminalFeed } from './components/TerminalFeed';
 import { AlertPanel } from './components/AlertPanel';
 import { XaiAlertPanel } from './components/XaiAlertPanel';
 import { SettingsDatabaseView } from './components/SettingsDatabaseView';
-import { AttackDemo } from './components/AttackDemo';
 import { LoginPage } from './components/LoginPage';
 import { useWebSocket } from './hooks/useWebSocket';
 
@@ -81,7 +80,6 @@ export default function App() {
       icon: ShieldAlert,
       count: alerts.length,
     },
-    { id: 'attack', label: 'Attack Simulation', icon: Zap },
     { id: 'settings', label: 'Model Config & Database', icon: Settings },
   ];
 
@@ -225,12 +223,6 @@ export default function App() {
             <div className="lg:col-span-7 h-full">
               <XaiAlertPanel alert={selectedAlert} />
             </div>
-          </div>
-        )}
-
-        {activeTab === 'attack' && (
-          <div className="flex-1">
-            <AttackDemo />
           </div>
         )}
 
