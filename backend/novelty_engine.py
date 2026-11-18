@@ -68,6 +68,41 @@ _MITRE_MAP = {
             "4. Escalate to Tier-2 analyst if repeated within 10 minutes."
         ),
     },
+    "Login Brute Force": {
+        "technique_id": "T1110.001",
+        "technique_name": "Brute Force: Password Guessing",
+        "tactic": "Credential Access",
+        "playbook": (
+            "1. Lock the targeted user account after 5 consecutive failed login attempts. "
+            "2. Enforce CAPTCHA or rate-limiting on the login endpoint. "
+            "3. Add source IP to temporary deny-list (24 h). "
+            "4. Enable multi-factor authentication on all user-facing accounts. "
+            "5. Review access logs for any successful login from the same src IP."
+        ),
+    },
+    "SQL Injection": {
+        "technique_id": "T1190",
+        "technique_name": "Exploit Public-Facing Application",
+        "tactic": "Initial Access",
+        "playbook": (
+            "1. Block the offending source IP immediately. "
+            "2. Review WAF logs for SQL injection signatures (UNION, OR 1=1, DROP). "
+            "3. Audit application input validation and parameterised queries. "
+            "4. Rotate database credentials as a precaution. "
+            "5. Run vulnerability scan on the affected endpoint."
+        ),
+    },
+    "XSS Attack": {
+        "technique_id": "T1059.007",
+        "technique_name": "Command and Scripting Interpreter: JavaScript",
+        "tactic": "Execution",
+        "playbook": (
+            "1. Sanitise and encode all user inputs on the affected page. "
+            "2. Enable Content-Security-Policy headers to block inline scripts. "
+            "3. Review session cookies for HttpOnly and Secure flags. "
+            "4. Scan for stored XSS payloads in the database."
+        ),
+    },
     "DEFAULT": {
         "technique_id": "T1595",
         "technique_name": "Active Scanning",
@@ -119,6 +154,35 @@ _NARRATIVES = {
         "Rapid-fire login attempts from {src} to {proto} service on {dst}:{port}. "
         "Request frequency of {pkt} attempts per minute exceeds human capability, "
         "confirming automated brute-force tooling. Rotate credentials immediately.",
+    ],
+    "Login Brute Force": [
+        "Automated credential stuffing detected: {src} has attempted {pkt} failed "
+        "login requests against the web login endpoint at {dst}:{port}. The request "
+        "frequency far exceeds human capability, indicating automated brute-force tooling. "
+        "Account lockout has been triggered after repeated failures.",
+
+        "Rapid-fire authentication failures from {src} targeting HTTP login form on "
+        "{dst}:{port}. {pkt} attempts observed with varying credential combinations. "
+        "Pattern is consistent with dictionary attack or credential-stuffing bot.",
+    ],
+    "SQL Injection": [
+        "Malicious SQL payload detected in login form submission from {src} to {dst}:{port}. "
+        "Input contained SQL meta-characters (UNION SELECT, OR 1=1, comment sequences). "
+        "The application's input validation rejected the attempt, but the attacker may "
+        "attempt parameter tampering on other endpoints.",
+
+        "SQL injection attempt intercepted from {src}: crafted input string targeting "
+        "authentication bypass on {dst}:{port}. Threat score {score} — this indicates "
+        "active exploitation rather than automated scanning.",
+    ],
+    "XSS Attack": [
+        "Cross-Site Scripting payload detected in form input from {src} to {dst}:{port}. "
+        "The submitted data contained embedded JavaScript (<script> tags or event handlers). "
+        "If stored, this could compromise other users' sessions. Input has been sanitised.",
+
+        "Reflected XSS attempt from {src} targeting login page on {dst}:{port}. "
+        "Payload included encoded script injection. Content-Security-Policy headers "
+        "prevented execution but the attack source should be monitored.",
     ],
     "DEFAULT": [
         "Anomalous traffic detected from {src} to {dst}:{port} via {proto}. "

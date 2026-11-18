@@ -12,8 +12,9 @@ from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from traffic_gen import run_traffic_generator, log_queue, NetworkLog, TrafficType
@@ -505,3 +506,275 @@ async def feedback_endpoint(ws: WebSocket):
 
 
 
+
+# ---------------------------------------------------------------------------
+# ── VULNERABLE LOGIN ENDPOINT (for attack demo) ───────────────────────────
+# ---------------------------------------------------------------------------
+# Static credential — intentionally simple for PBL demo
+DEMO_USERNAME = "admin"
+DEMO_PASSWORD = "admin123"
+
+# Track failed attempts per IP for brute-force detection
+_login_attempts: dict[str, list[float]] = defaultdict(list)
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def _detect_attack_type(username: str, password: str) -> str:
+    """Heuristic to classify the type of attack based on input content."""
+    sql_patterns = ["'", '"', "OR ", "UNION", "SELECT", "DROP", "--", ";", "1=1", "' OR"]
+    xss_patterns = ["<script", "javascript:", "onerror", "onload", "alert(", "<img", "<svg"]
+
+    combined = (username + password).upper()
+    if any(p.upper() in combined for p in sql_patterns):
+        return "SQL Injection"
+    if any(p.upper() in combined for p in xss_patterns):
+        return "XSS Attack"
+    return "Login Brute Force"
+
+
+@app.post("/api/login")
+async def login_endpoint(creds: LoginRequest, request: Request):
+    """
+    Vulnerable login endpoint for CSOC attack demonstration.
+    Every login attempt generates a network log that flows through
+    the full 4-stage CSOC pipeline.
+    """
+    client_ip = request.client.host if request.client else "0.0.0.0"
+    now = time.time()
+
+    # Detect what kind of attack this input represents
+    attack_type = _detect_attack_type(creds.username, creds.password)
+    is_success = (creds.username == DEMO_USERNAME and creds.password == DEMO_PASSWORD)
+
+    # Track attempts for brute-force scoring
+    _login_attempts[client_ip].append(now)
+    # Keep only last 60 seconds of attempts
+    _login_attempts[client_ip] = [t for t in _login_attempts[client_ip] if now - t < 60]
+    recent_count = len(_login_attempts[client_ip])
+
+    # Create a NetworkLog that enters the existing pipeline
+    log = NetworkLog(
+        timestamp=now,
+        src_ip=client_ip,
+        dst_ip="10.0.1.50",         # Our login server
+        src_port=random.randint(40000, 65535),
+        dst_port=8000,
+        protocol="HTTP",
+        bytes_sent=len(creds.username) + len(creds.password) + 200,
+        bytes_recv=512 if is_success else 256,
+        duration_ms=round(random.uniform(10.0, 150.0), 2),
+        traffic_type=TrafficType.NORMAL if is_success else TrafficType.ATTACK,
+        attack_label="DEFAULT" if is_success else attack_type,
+        packet_count=recent_count,   # Higher count = more suspicious
+        ttl=64,
+        flags="ACK" if is_success else "SYN",
+    )
+
+    # Push into the same pipeline queue used by traffic_gen
+    try:
+        log_queue.put_nowait(log)
+    except asyncio.QueueFull:
+        pass
+
+    if is_success:
+        return {"status": "success", "message": "Login successful", "user": creds.username}
+    else:
+        return {
+            "status": "failed",
+            "message": "Invalid credentials",
+            "attempts_last_60s": recent_count,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Standalone vulnerable login HTML page (served at /vulnerable-login)
+# ---------------------------------------------------------------------------
+VULNERABLE_LOGIN_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo Login Portal</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #f1f5f9; min-height: 100vh; display: flex; align-items: center;
+         justify-content: center; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+          padding: 2rem; width: 100%; max-width: 380px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  h2 { font-size: 1.1rem; color: #1e293b; margin-bottom: 0.25rem; }
+  .sub { font-size: 0.75rem; color: #94a3b8; margin-bottom: 1.5rem; }
+  label { display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem; }
+  input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px;
+          font-size: 0.875rem; margin-bottom: 1rem; outline: none; }
+  input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.15); }
+  button { width: 100%; padding: 0.6rem; background: #3b82f6; color: #fff; border: none;
+           border-radius: 8px; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+  button:hover { background: #2563eb; }
+  .msg { font-size: 0.75rem; padding: 0.5rem; border-radius: 6px; margin-top: 0.75rem; }
+  .msg.ok { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+  .msg.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .hint { font-size: 0.7rem; color: #94a3b8; text-align: center; margin-top: 1rem;
+          border-top: 1px solid #f1f5f9; padding-top: 0.75rem; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>🔐 Demo Login Portal</h2>
+  <p class="sub">This page is intentionally vulnerable for CSOC attack demo</p>
+  <form id="loginForm">
+    <label>Username</label>
+    <input type="text" id="username" placeholder="Enter username" autocomplete="off">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Enter password">
+    <button type="submit">Sign In</button>
+  </form>
+  <div id="result"></div>
+  <div class="hint">
+    Valid credential: <code>admin</code> / <code>admin123</code><br>
+    Try wrong passwords, SQL injection, or XSS payloads to trigger CSOC alerts
+  </div>
+</div>
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const u = document.getElementById('username').value;
+  const p = document.getElementById('password').value;
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username: u, password: p})
+  });
+  const data = await res.json();
+  const el = document.getElementById('result');
+  if (data.status === 'success') {
+    el.className = 'msg ok';
+    el.textContent = '✅ ' + data.message;
+  } else {
+    el.className = 'msg err';
+    el.textContent = '❌ ' + data.message + ' (Attempts: ' + data.attempts_last_60s + ')';
+  }
+});
+</script>
+</body>
+</html>"""
+
+
+@app.get("/vulnerable-login", response_class=HTMLResponse)
+async def vulnerable_login_page():
+    """Serves the standalone vulnerable login page for attack testing."""
+    return VULNERABLE_LOGIN_HTML
+
+
+# ---------------------------------------------------------------------------
+# Bulk attack simulation endpoint (for examiner demo convenience)
+# ---------------------------------------------------------------------------
+class AttackSimRequest(BaseModel):
+    attack_type: str = "brute_force"   # brute_force | sql_injection | xss | mixed
+    count: int = 20
+
+
+@app.post("/api/simulate-attack")
+async def simulate_attack(req: AttackSimRequest, request: Request):
+    """
+    Programmatically fires a batch of attack login attempts.
+    Useful for the examiner to trigger a visible burst in the CSOC dashboard.
+    """
+    client_ip = request.client.host if request.client else "0.0.0.0"
+    payloads = []
+
+    if req.attack_type == "brute_force":
+        common_passwords = [
+            "password", "123456", "admin", "letmein", "qwerty", "abc123",
+            "monkey", "dragon", "master", "login", "welcome", "shadow",
+            "sunshine", "trustno1", "iloveyou", "batman", "football",
+            "charlie", "donald", "password1",
+        ]
+        for i in range(req.count):
+            payloads.append({"username": "admin", "password": common_passwords[i % len(common_passwords)]})
+
+    elif req.attack_type == "sql_injection":
+        sqli_payloads = [
+            "' OR '1'='1", "admin'--", "' UNION SELECT * FROM users--",
+            "1; DROP TABLE users", "' OR 1=1#", "admin' OR '1'='1'--",
+            "'; EXEC xp_cmdshell('dir')--", "' UNION SELECT null,null--",
+            "1' AND 1=1--", "admin'; DELETE FROM alerts--",
+        ]
+        for i in range(req.count):
+            payloads.append({
+                "username": sqli_payloads[i % len(sqli_payloads)],
+                "password": "hacked"
+            })
+
+    elif req.attack_type == "xss":
+        xss_payloads = [
+            "<script>alert('XSS')</script>", "<img src=x onerror=alert(1)>",
+            "<svg onload=alert('xss')>", "javascript:alert(document.cookie)",
+            "<body onload=alert('hacked')>", "<input onfocus=alert(1) autofocus>",
+            "<marquee onstart=alert('XSS')>", "'\"><script>alert(String.fromCharCode(88,83,83))</script>",
+            "<iframe src='javascript:alert(1)'>", "<div style='background:url(javascript:alert(1))'>",
+        ]
+        for i in range(req.count):
+            payloads.append({
+                "username": xss_payloads[i % len(xss_payloads)],
+                "password": "test"
+            })
+
+    elif req.attack_type == "mixed":
+        # Mix of all attack types
+        for i in range(req.count):
+            choice = random.choice(["brute_force", "sql_injection", "xss"])
+            if choice == "brute_force":
+                payloads.append({"username": "admin", "password": f"guess{i}"})
+            elif choice == "sql_injection":
+                payloads.append({"username": f"' OR {i}={i}--", "password": "x"})
+            else:
+                payloads.append({"username": f"<script>alert({i})</script>", "password": "x"})
+
+    # Fire all payloads through the login pipeline
+    results = {"total": len(payloads), "failed": 0, "success": 0, "attack_type": req.attack_type}
+    for payload in payloads:
+        attack_label = _detect_attack_type(payload["username"], payload["password"])
+        is_success = (payload["username"] == DEMO_USERNAME and payload["password"] == DEMO_PASSWORD)
+
+        now = time.time()
+        _login_attempts[client_ip].append(now)
+        _login_attempts[client_ip] = [t for t in _login_attempts[client_ip] if now - t < 60]
+
+        log = NetworkLog(
+            timestamp=now,
+            src_ip=client_ip,
+            dst_ip="10.0.1.50",
+            src_port=random.randint(40000, 65535),
+            dst_port=8000,
+            protocol="HTTP",
+            bytes_sent=len(payload["username"]) + len(payload["password"]) + 200,
+            bytes_recv=512 if is_success else 256,
+            duration_ms=round(random.uniform(5.0, 80.0), 2),
+            traffic_type=TrafficType.NORMAL if is_success else TrafficType.ATTACK,
+            attack_label="DEFAULT" if is_success else attack_label,
+            packet_count=len(_login_attempts[client_ip]),
+            ttl=64,
+            flags="ACK" if is_success else "SYN",
+        )
+
+        try:
+            log_queue.put_nowait(log)
+        except asyncio.QueueFull:
+            pass
+
+        if is_success:
+            results["success"] += 1
+        else:
+            results["failed"] += 1
+
+        await asyncio.sleep(0.05)  # Small delay so pipeline processes them visibly
+
+    return {
+        "message": f"Attack simulation complete: {results['failed']} failed, {results['success']} successful",
+        "details": results,
+    }
