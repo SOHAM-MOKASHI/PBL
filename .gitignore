@@ -31,3 +31,7 @@ Thumbs.db
 
 # Local checkpoints
 checkpoint-pre-login/
+
+*.db-wal
+*.db-shm
+*.db-journal
