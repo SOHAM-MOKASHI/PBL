@@ -415,8 +415,23 @@ async def get_telemetry():
 
 
 @app.get("/api/threshold")
+@app.get("/api/config/threshold")
 async def get_threshold():
     return {"threshold": CURRENT_ALERT_THRESHOLD, "whitelist": list(BENIGN_WHITELIST)}
+
+
+class ThresholdRequest(BaseModel):
+    threshold: float
+
+
+@app.post("/api/config/threshold")
+@app.post("/api/threshold")
+async def update_threshold(req: ThresholdRequest):
+    global CURRENT_ALERT_THRESHOLD
+    CURRENT_ALERT_THRESHOLD = max(10.0, min(99.0, req.threshold))
+    save_config(CURRENT_ALERT_THRESHOLD, BENIGN_WHITELIST)
+    await feedback_manager.broadcast_threshold()
+    return {"status": "success", "threshold": CURRENT_ALERT_THRESHOLD}
 
 
 # ---------------------------------------------------------------------------
