@@ -1,5 +1,5 @@
 # 🛡️ CSOC — Cognitive Security Operations Center
-### Enterprise-Grade Cyber Threat Detection & Explainable AI (XAI) Triage Platform
+###  Cyber Threat Detection & Explainable AI (XAI) Triage Platform
 
 [![Python Version](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%20%7C%20Uvicorn-009688.svg)](https://fastapi.tiangolo.com)
