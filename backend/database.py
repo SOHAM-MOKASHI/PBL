@@ -1,8 +1,27 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, JSON
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+import os
 import logging
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, JSON, event
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
 Base = declarative_base()
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "soc_prototype.db")
+
+engine = create_engine(
+    f'sqlite:///{DB_PATH}',
+    connect_args={'check_same_thread': False, 'timeout': 15}
+)
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.close()
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Alert(Base):
     __tablename__ = 'alerts'
@@ -37,9 +56,6 @@ class Config(Base):
     __tablename__ = 'configs'
     key = Column(String, primary_key=True, index=True)
     value = Column(JSON)
-
-engine = create_engine('sqlite:///soc_prototype.db', connect_args={'check_same_thread': False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     """Create all tables in the SQLite database"""
