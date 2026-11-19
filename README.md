@@ -24,8 +24,9 @@
 
 ```mermaid
 flowchart TD
-    subgraph Data Sources & Simulation
-        TG[traffic_gen.py] -->|Synthetic Flow or CIC-IDS2017| Q[(asyncio.Queue)]
+    subgraph Data Sources & Attack Simulation
+        TG[traffic_gen.py: Synthetic & CIC-IDS2017] --> Q[(asyncio.Queue)]
+        VULN[Vulnerable Login Portal /api/login] -->|Live Attacks: Hydra / Burp / curl / Browser| S1
     end
 
     subgraph 4-Stage Detection Pipeline
@@ -126,6 +127,93 @@ npm install
 npm run dev
 ```
 * Operator Dashboard: `http://localhost:5173`
+
+### Step 4: Access the Live Vulnerable Login Target
+Once the backend is running, the simulated authentication gateway is automatically online:
+* **Target Portal (Browser)**: `http://localhost:8000/vulnerable-login` (or `http://localhost:8000/login`)
+* **API Ingestion Route**: `http://localhost:8000/api/login`
+* **Default Authorized Credentials**: `admin` / `admin123`
+
+---
+
+## 🎯 Vulnerable Login Target & Live Attack Testing
+
+To demonstrate that the CSOC pipeline detects and triages real, live cyberattacks (beyond pre-generated dataset replay), a standalone **University Authentication Gateway** is embedded directly into the backend service.
+
+Any inbound authentication attempt—whether originating from a browser, a custom Python script, `curl`, or penetration testing utilities like **Hydra** or **Burp Suite**—is captured in real time, transformed into a standard `NetworkLog`, and processed through the detection pipeline.
+
+### 🌐 Accessing the Target
+| Interface | URL | Purpose |
+|---|---|---|
+| **Web Browser Portal** | `http://localhost:8000/vulnerable-login` | Interactive web UI for manual testing & demo |
+| **API Ingestion Endpoint** | `http://localhost:8000/api/login` | Direct target for automated attack scripts & CLI tools |
+| **Alternative Aliases** | `http://localhost:8000/login`, `/portal` | Route aliases for external fuzzers / scanners |
+
+* **Valid Test Credentials**: Username: `admin` | Password: `admin123`
+* Any incorrect attempt or malicious string is logged as an attack and passed to the CSOC.
+
+---
+
+### ⚔️ Executing Live Attack Scenarios
+
+#### Scenario 1: Credential Brute Force (`T1110.001`)
+Simulate rapid password guessing or credential stuffing:
+
+**Using Bash / Git Bash / curl:**
+```bash
+for i in {1..10}; do
+  curl -s -X POST http://localhost:8000/api/login \
+    -H "Content-Type: application/json" \
+    -d "{\"username\": \"admin\", \"password\": \"wrongpass$i\"}"
+  echo " Attempt $i sent"
+done
+```
+
+**Using Windows PowerShell:**
+```powershell
+1..10 | ForEach-Object {
+    Invoke-RestMethod -Uri "http://localhost:8000/api/login" -Method Post -ContentType "application/json" -Body "{`"username`":`"admin`",`"password`":`"wrongpass$_`"}"
+}
+```
+
+#### Scenario 2: SQL Injection Attempt (`T1190`)
+Simulate an authentication bypass exploit payload:
+```bash
+curl -X POST http://localhost:8000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin'\'' OR '\''1'\''='\''1", "password": "nopass"}'
+```
+
+#### Scenario 3: Cross-Site Scripting (XSS) Vector (`T1059.007`)
+Inject client-side script payloads into the authentication field:
+```bash
+curl -X POST http://localhost:8000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "<script>alert(document.cookie)</script>", "password": "test"}'
+```
+
+#### Scenario 4: External Security Tools (Hydra / Burp Suite)
+Target the API or form endpoint with Hydra:
+```bash
+# Hydra HTTP-POST form brute-force example
+hydra -l admin -P /path/to/wordlist.txt localhost -s 8000 http-post-form "/vulnerable-login:username=^USER^&password=^PASS^:Invalid credentials"
+```
+
+---
+
+### 🔄 End-to-End Attack Lifecycle & Data Flow
+When an attack is launched against the vulnerable login page:
+1. **Metadata Capture (`backend/main.py`)**: The `_handle_login_attempt` handler inspects the incoming payload for injection signatures, tracks attempt frequency per client IP in a 60-second sliding window, and builds a `NetworkLog` object.
+2. **Database Persistence (`backend/database.py`)**: The event is immediately inserted into SQLite (`soc_prototype.db`) under the `network_logs` table.
+3. **Pipeline Evaluation**:
+   - **Stage 2**: Evaluates destination port (8000) and flags external attack traffic.
+   - **Stage 3**: The Isolation Forest anomaly scorer flags anomalous frequency/payload patterns, elevating the threat score ($0-100$).
+   - **Stage 4**: If threat score $\ge 60$ (or configured threshold), a security alert is created and enriched with MITRE tactic and XAI narrative.
+4. **WebSocket Stream (`/ws/alerts`)**: Broadcasts the alert in real time to the React dashboard (`http://localhost:5173`).
+5. **Dashboard Reflection**:
+   - The **Terminal Feed** logs the incoming HTTP event.
+   - The **Threat Score Timeline** spikes in real time.
+   - The **Alert Panel** displays a new prioritized alert with an incident investigation playbook.
 
 ---
 
