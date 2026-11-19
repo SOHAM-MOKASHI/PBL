@@ -16,7 +16,7 @@
 1. **A 4-Stage High-Throughput Detection Pipeline** (Ingest $\rightarrow$ Heuristic Noise Drop $\rightarrow$ Multi-Factor ML Anomaly Scoring $\rightarrow$ Alert Triage).
 2. **Explainable AI (XAI) & MITRE ATT&CK® Mapping** translating numerical anomaly scores into plain-English incident narratives and step-by-step containment playbooks.
 3. **Human-in-the-Loop (RLHF) Dynamic Tuning** allowing Tier-1/Tier-2 SOC analysts to confirm threats or mark benign false positives over WebSockets, adjusting alerting thresholds in real-time.
-4. **Interactive Cyberpunk Operations Dashboard** featuring DEFCON level alerts, real-time threat score area curves, interactive React Flow attack kill chains, and an organizational **Blind Spot Index**.
+4. **Interactive Security Operations Dashboard** featuring real-time threat status, threat velocity curves, and an organizational **Blind Spot Index**.
 
 ---
 
@@ -76,7 +76,9 @@ Every alert elevated to `HIGH` or `CRITICAL` is dynamically mapped to the **MITR
 | **DDoS Attack** | `T1498` | Network Denial of Service | Impact | Rate-limit inbound SYN packets at perimeter firewall; initiate upstream BGP blackholing. |
 | **Port Scan** | `T1046` | Network Service Discovery | Discovery | Apply 24h temporary ACL block on source IP; audit exposed perimeter ports. |
 | **Data Exfiltration** | `T1041` | Exfiltration Over C2 Channel | Exfiltration | Immediate network isolation (quarantine VLAN); egress proxy block; initiate IR Playbook PR-04. |
-| **Brute Force** | `T1110` | Brute Force Credentials | Credential Access | Auto-lock target account; enforce MFA on SSH/RDP; rotate session credentials. |
+| **Brute Force** | `T1110` / `T1110.001` | Brute Force: Password Guessing | Credential Access | Auto-lock target account; enforce MFA on SSH/RDP/HTTP; rotate session credentials. |
+| **SQL Injection** | `T1190` | Exploit Public-Facing Application | Initial Access | Block offending source IP; review WAF logs; audit input sanitization & parameterised queries. |
+| **XSS Attack** | `T1059.007` | Command & Scripting Interpreter: JavaScript | Execution | Sanitise user inputs; enforce Content-Security-Policy headers; inspect session cookies. |
 | **Suspicious Activity** | `T1071` | Application Layer Protocol Abuse | Command & Control | Flag source IP for 48h enhanced watchlist; inspect TLS SNI/JA3 fingerprints. |
 
 ---
@@ -93,11 +95,10 @@ Every alert elevated to `HIGH` or `CRITICAL` is dynamically mapped to the **MITR
 ### Frontend
 * **Runtime**: Node.js $\ge 18$
 * **Framework**: React 18 + Vite 5
-* **Styling**: Tailwind CSS + Custom Cyberpunk Glow & Scanline Engine
+* **Styling**: Tailwind CSS
 * **Visualizations**:
   * **Recharts**: Responsive real-time area threat timeline
-  * **@xyflow/react (React Flow)**: Interactive directed cyber kill-chain graph
-  * **Lucide Icons**: Cyberpunk HUD iconography
+  * **Lucide Icons**: Professional clean UI iconography
 
 ---
 
@@ -139,6 +140,9 @@ npm run dev
 | `GET` | `/api/timeline` | Returns 1-second bucketing timeline data for threat charting. |
 | `GET` | `/api/telemetry` | Telemetry coverage analysis and Blind Spot Index ($0.0-1.0$). |
 | `GET` | `/api/threshold` | Current alert threshold and active benign IP whitelist. |
+| `POST` | `/api/config/threshold` | Updates and persists the anomaly sensitivity threshold to SQLite. |
+| `GET` | `/login` / `/vulnerable-login` | Web authentication portal target for live cyberattack testing. |
+| `POST` | `/api/login` | Ingestion endpoint for simulated attacks (Brute Force, SQLi, XSS). |
 | `WS` | `/ws/alerts` | Bidirectional real-time stream for telemetry, logs, and alerts. |
 | `WS` | `/ws/feedback` | Real-time RLHF feedback channel for analyst threshold tuning. |
 
@@ -152,26 +156,3 @@ A comprehensive test suite covering all REST endpoints, WebSocket connections, p
 cd backend
 python test_csoc.py
 ```
-
----
-
-## 🧑‍🏫 Live Presentation & Mentor Defense Guide
-
-During your review with your **Industrial Mentor**, follow this **3-Minute High-Impact Demo Sequence**:
-
-1. **Authentication (0:00 - 0:30):**
-   - Open `http://localhost:5173`.
-   - Enter credentials (`admin` / `password`) and click **"Initiate Handshake"**.
-   - Explain: *"Our platform enforces strict operator clearance and logs every authentication handshake."*
-2. **Core SOC Situational Awareness (0:30 - 1:30):**
-   - Point out the **DEFCON status** and the **4-Stage Pipeline View**.
-   - Explain: *"Our Stage 2 filter drops internal web traffic, instantly reducing raw noise by over 40% so analysts only focus on anomalies."*
-   - Observe the **Threat Score Timeline** reacting in real time as attack bursts inject.
-3. **Deep-Dive Triage & XAI (1:30 - 2:30):**
-   - In the **Alert Panel**, click **"Inspect"** on an active `CRITICAL` alert.
-   - The UI automatically switches to the **AI Research Modules** tab.
-   - Walk through the **Kill Chain Graph**: *"Here, React Flow dynamically maps the adversary from source IP through each tactic directly to our target host."*
-   - Point to the **AI Narrative** and **MITRE Technique ID**: *"Rather than guessing, Tier-1 analysts get an immediate, plain-English summary and an incident containment playbook."*
-4. **Analyst RLHF & Incident Escalation (2:30 - 3:00):**
-   - Click **"Confirm Threat"** or **"Mark Benign"**: *"Notice the Dynamic Threshold HUD instantly adjusts over WebSockets and saves to SQLite."*
-   - Click **"Escalate to Admin & Download Report"**: Show the generated incident report downloaded to your machine.
